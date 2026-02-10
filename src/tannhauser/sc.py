@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 __all__ = ['SoundEngine', 'SuperCollider']
 
 from abc import ABC
@@ -167,7 +169,7 @@ class SuperCollider(SoundEngine):
             logger.info('No additional SCD files to include')
             os.environ.pop('TNHSR_INCLUDES', None)
 
-    def boot(self) -> None:
+    def boot(self) -> SuperCollider:
         """Boot SuperCollider if not already running."""
         self._start_osc_server()
 
@@ -214,7 +216,9 @@ class SuperCollider(SoundEngine):
         while time.time() - start < self.boot_timeout:
             if self._is_sc_alive():
                 logger.info('SuperCollider booted successfully')
-                return
+                # Allow using this method inside a `with` statement for
+                # automatic cleanup on failure
+                return self
             time.sleep(0.5)
 
         logger.error('SuperCollider failed to boot within timeout')
@@ -279,11 +283,11 @@ class SuperCollider(SoundEngine):
         self._stop_osc_server()
 
     def __enter__(self):
-        self.boot()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.quit()
+        return self
 
     def test(self,
              freq: float = 440.0,
