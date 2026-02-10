@@ -43,14 +43,19 @@ class Piano:
         'y': 8,
         'h': 9,
         'u': 10,
-        'j': 11
+        'j': 11,
+        'k': 12,
+        'o': 13,
+        'l': 14,
+        'p': 15
     }
     OCTAVE_UP_KEY = '+'
     OCTAVE_DOWN_KEY = '-'
     QUIT_KEY = 'q'
 
     KEY_NAMES = [
-        'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'
+        'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C',
+        'C#', 'D', 'D#'
     ]
 
     def __init__(self,
