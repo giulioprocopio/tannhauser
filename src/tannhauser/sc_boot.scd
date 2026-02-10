@@ -53,9 +53,11 @@ s.waitForBoot({
         var freq = msg[1] ? 440;
         var amp = msg[2] ? 0.2;
         var dur = msg[3] ? 1.0;
+        var logMsg;
 
-        s = "Test received (freq: %, amp: %, dur: %)".format(freq, amp, dur);
-        s.postln;
+        logMsg = "Test received (freq: %, amp: %, dur: %)"
+            .format(freq, amp, dur);
+        logMsg.postln;
 
         Synth(\sample, [
             \freq, freq.asFloat, \amp, amp.asFloat, \dur, dur.asFloat
