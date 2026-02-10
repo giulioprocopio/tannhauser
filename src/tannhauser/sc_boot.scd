@@ -1,0 +1,94 @@
+(
+~scPort = 57120;
+~pyPort = 57121;
+
+~includeFiles = (getenv("TNHSR_INCLUDES") ?? "").split(";")
+.reject({ |s| s.isEmpty });
+
+// MacOS with AirPods 2 seems to have issues with the default buffer size
+// causing distortion. Setting it to 256 seems to fix the issue.
+s.options.numInputBusChannels = 0;
+s.options.hardwareBufferSize = 256;
+
+thisProcess.openUDPPort(~scPort);
+"sclang listening on UDP port 57120".postln;
+
+s.waitForBoot({
+
+    "SuperCollider audio server booted".postln;
+
+    ~pyPort = NetAddr("127.0.0.1", ~pyPort);
+
+    OSCdef(\quit, {
+        "Quit received".postln;
+        s.freeAll;
+        s.quit;
+        0.exit;
+    }, '/quit');
+
+    OSCdef(\status_reply, { |msg|
+        var status = [
+            1.0,
+            s.numGroups.asFloat,
+            s.numSynths.asFloat,
+            s.numUGens.asFloat,
+            s.avgCPU,
+            s.peakCPU,
+            s.avgCPU,
+            s.sampleRate,
+            s.actualSampleRate
+        ];
+        // For some reason, keeping integers in the tuple causes the Python OSC
+        // library to fail parsing it, so we convert everything to float.
+        ~pyPort.sendMsg("/status.reply", *status);
+    }, '/status');
+
+    SynthDef(\sample, { |freq = 440, amp = 0.2, dur = 1.0|
+        var env = EnvGen.kr(Env.perc(0.01, dur, amp), doneAction: 2);
+        var sig = SinOsc.ar(freq) * env;
+        Out.ar(0, sig ! 2);
+    }).add;
+
+    OSCdef(\test, { |msg|
+        var freq = msg[1] ? 440;
+        var amp = msg[2] ? 0.2;
+        var dur = msg[3] ? 1.0;
+
+        s = "Test received (freq: %, amp: %, dur: %)".format(freq, amp, dur);
+        s.postln;
+
+        Synth(\sample, [
+            \freq, freq.asFloat, \amp, amp.asFloat, \dur, dur.asFloat
+        ]);
+    }, '/test');
+
+    OSCdef(\scope, { |msg|
+        var numChannels = msg[1] ? 2;
+        AppClock.sched(0, {
+            s.scope(numChannels);
+            nil
+        });
+    }, '/scope');
+
+    OSCdef(\freqscope, { |msg|
+        var numChannels = msg[1] ? 2;
+        AppClock.sched(0, {
+            s.freqscope(numChannels);
+            nil
+        });
+    }, '/freqscope');
+
+    ~includeFiles.do { |filePath|
+        ("Loading " ++ filePath).postln;
+        filePath.load;
+    };
+
+    "SuperCollider ready".postln;
+
+}, {
+
+    "SuperCollider boot failed".postln;
+    1.exit;
+
+});
+)
