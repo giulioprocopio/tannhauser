@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ['Piano']
+__all__ = ['PianoUI']
 
 import curses
 import logging
@@ -27,7 +27,7 @@ def _load_pynput():
 logger = logging.getLogger(__name__)
 
 
-class Piano:
+class PianoUI:
     """Terminal UI to send MIDI notes callbacks based on PC keyboard input."""
 
     # Map keyboard keys to semitone offsets from C.
@@ -204,18 +204,21 @@ class Piano:
 
         self.stdscr = None
 
-    def start(self) -> Piano:
+    def start(self) -> PianoUI:
         """Start keyboard listener and terminal UI."""
+        logger.info('Starting piano UI')
         self._running = True
         self.listener.start()
 
         # Run curses UI in main thread (curses requirement)
         curses.wrapper(self._run_ui)
 
+        logger.info('Piano UI stopped')
         return self
 
     def stop(self) -> None:
         """Stop keyboard listener and UI."""
+        logger.info('Stopping piano UI')
         self._running = False
         if self.listener.is_alive():
             self.listener.stop()
