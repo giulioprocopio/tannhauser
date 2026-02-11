@@ -4,8 +4,9 @@ __all__ = ['PianoUI']
 
 import curses
 import logging
+from math import log10
 import threading
-from typing import Callable
+from typing import Callable, Literal
 
 pynput = None
 keyboard = None
@@ -31,7 +32,7 @@ class PianoUI:
     """Terminal UI to send MIDI notes callbacks based on PC keyboard input."""
 
     # Map keyboard keys to semitone offsets from C.
-    KEY_MAP = {
+    NOTE_KEY_MAP = {
         'a': 0,
         'w': 1,
         's': 2,
@@ -49,6 +50,18 @@ class PianoUI:
         'l': 14,
         'p': 15
     }
+    # Map numbers from 1 to 9 to modulation linear range from 0.0 to 1.0
+    MOD_KEY_MAP = {
+        '1': 0.0,
+        '2': 0.125,
+        '3': 0.25,
+        '4': 0.375,
+        '5': 0.5,
+        '6': 0.625,
+        '7': 0.75,
+        '8': 0.875,
+        '9': 1.0
+    }
     OCTAVE_UP_KEY = '+'
     OCTAVE_DOWN_KEY = '-'
     QUIT_KEY = 'q'
@@ -61,13 +74,17 @@ class PianoUI:
     def __init__(self,
                  on_press: Callable[[int, int, float], None] | None = None,
                  on_release: Callable[[int], None] | None = None,
-                 velocity: float = 0.8):
+                 on_mod: Callable[[float], None] | None = None,
+                 velocity: float = 0.8,
+                 mod_func: Literal['linear', 'log', 'invlog'] = 'linear'):
         _load_pynput()
 
         self.on_press = on_press
         self.on_release = on_release
+        self.on_mod = on_mod
 
         self.velocity = velocity
+        self.mod_func = mod_func
 
         # Start at C4 (MIDI note 60)
         self.offset = 60
@@ -75,6 +92,8 @@ class PianoUI:
         self.pressed_keys = set()
         self.listener = keyboard.Listener(on_press=self._handle_key_press,
                                           on_release=self._handle_key_release)
+
+        self.mod_value: float | None = None
 
         self._free_ids = set(range(1024))  # Hopefully enough for any use case
 
@@ -94,6 +113,16 @@ class PianoUI:
     def _midi_to_freq(self, midi_note: int) -> float:
         return 440.0 * (2.0**((midi_note - 69) / 12))
 
+    def _eval_mod_value(self, x: float) -> float:
+        if self.mod_func == 'linear':
+            return x
+        elif self.mod_func == 'log':
+            return log10(9 * x + 1)
+        elif self.mod_func == 'invlog':
+            return 1 - log10(9 * (1 - x) + 1)
+        else:
+            raise ValueError(f'Unknown mod function: {self.mod_func}')
+
     def _handle_key_press(self, key) -> None:
         try:
             char = key.char.lower()
@@ -103,13 +132,15 @@ class PianoUI:
         if char == self.OCTAVE_UP_KEY:
             self.offset += 12
             self.offset = min(self.offset, 108)  # Limit to C8
+
             self._update_display()
         elif char == self.OCTAVE_DOWN_KEY:
             self.offset -= 12
             self.offset = max(self.offset, 12)  # Limit to C0
+
             self._update_display()
-        elif char in self.KEY_MAP:
-            semitone = self.KEY_MAP[char]
+        elif char in self.NOTE_KEY_MAP:
+            semitone = self.NOTE_KEY_MAP[char]
 
             for s, _, _ in self.pressed_keys:
                 if s == semitone:
@@ -120,9 +151,19 @@ class PianoUI:
             note_id = self._generate_id()
             # Store tuple to keep track of octave changes.
             self.pressed_keys.add((semitone, midi_note, note_id))
+
             self._update_display()
+
             if self.on_press:
                 self.on_press(note_id, midi_note, self.velocity)
+        elif char in self.MOD_KEY_MAP:
+            self.mod_value = self.MOD_KEY_MAP[char]
+            self.mod_value = self._eval_mod_value(self.mod_value)
+
+            self._update_display()
+
+            if self.on_mod:
+                self.on_mod(self.mod_value)
 
     def _handle_key_release(self, key) -> False:
         try:
@@ -130,8 +171,8 @@ class PianoUI:
         except AttributeError:
             return  # Ignore special keys
 
-        if char in self.KEY_MAP:
-            semitone = self.KEY_MAP[char]
+        if char in self.NOTE_KEY_MAP:
+            semitone = self.NOTE_KEY_MAP[char]
             # Handle case where key is pressed and then octave is changed
             # before release: release should still trigger for the original
             # note.
@@ -183,12 +224,21 @@ class PianoUI:
             pressed_x = (width - len(pressed_line)) // 2
             self.stdscr.addstr(4, max(0, pressed_x), pressed_line)
 
+            if self.mod_value is not None:
+                mod_line = f'Mod: {self.mod_value:.2f}'
+            else:
+                mod_line = 'Mod: —'
+
+            mod_x = (width - len(mod_line)) // 2
+            self.stdscr.addstr(5, max(0, mod_x), mod_line)
+
             instr_line = (
                 f'Press {self.QUIT_KEY} to quit, [{self.OCTAVE_UP_KEY}'
                 f'{self.OCTAVE_DOWN_KEY}] to change octave,'
-                f" [{''.join(self.KEY_MAP.keys())}] to play notes")
+                f" [{''.join(self.NOTE_KEY_MAP.keys())}] to play notes,"
+                f" [{''.join(self.MOD_KEY_MAP.keys())}] to modulate")
             instr_x = (width - len(instr_line)) // 2
-            self.stdscr.addstr(6, max(0, instr_x), instr_line, curses.A_DIM)
+            self.stdscr.addstr(7, max(0, instr_x), instr_line, curses.A_DIM)
 
             self.stdscr.refresh()
         except curses.error:
