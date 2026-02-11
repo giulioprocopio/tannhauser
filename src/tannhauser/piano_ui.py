@@ -59,12 +59,15 @@ class PianoUI:
     ]
 
     def __init__(self,
-                 on_press: Callable[[int, float], None] | None = None,
-                 on_release: Callable[[int], None] | None = None):
+                 on_press: Callable[[int, int, float], None] | None = None,
+                 on_release: Callable[[int], None] | None = None,
+                 velocity: float = 0.8):
         _load_pynput()
 
         self.on_press = on_press
         self.on_release = on_release
+
+        self.velocity = velocity
 
         # Start at C4 (MIDI note 60)
         self.offset = 60
@@ -73,9 +76,20 @@ class PianoUI:
         self.listener = keyboard.Listener(on_press=self._handle_key_press,
                                           on_release=self._handle_key_release)
 
+        self._free_ids = set(range(1024))  # Hopefully enough for any use case
+
         self.stdscr = None
         self._ui_thread = None
         self._running = False
+
+    def _generate_id(self) -> int:
+        if not self._free_ids:
+            raise RuntimeError('No more free IDs available')
+
+        return self._free_ids.pop()
+
+    def _release_id(self, i: int) -> None:
+        self._free_ids.add(i)
 
     def _midi_to_freq(self, midi_note: int) -> float:
         return 440.0 * (2.0**((midi_note - 69) / 12))
@@ -97,17 +111,18 @@ class PianoUI:
         elif char in self.KEY_MAP:
             semitone = self.KEY_MAP[char]
 
-            for s, midi_note in self.pressed_keys:
+            for s, _, _ in self.pressed_keys:
                 if s == semitone:
                     # Key is already pressed, ignore repeat
                     return
 
             midi_note = self.offset + semitone
+            note_id = self._generate_id()
             # Store tuple to keep track of octave changes.
-            self.pressed_keys.add((semitone, midi_note))
+            self.pressed_keys.add((semitone, midi_note, note_id))
             self._update_display()
             if self.on_press:
-                self.on_press(midi_note, self._midi_to_freq(midi_note))
+                self.on_press(note_id, midi_note, self.velocity)
 
     def _handle_key_release(self, key) -> False:
         try:
@@ -120,12 +135,13 @@ class PianoUI:
             # Handle case where key is pressed and then octave is changed
             # before release: release should still trigger for the original
             # note.
-            for s, midi_note in list(self.pressed_keys):
+            for s, midi_note, note_id in list(self.pressed_keys):
                 if s == semitone:
-                    self.pressed_keys.remove((s, midi_note))
+                    self.pressed_keys.remove((s, midi_note, note_id))
                     self._update_display()
                     if self.on_release:
-                        self.on_release(midi_note)
+                        self.on_release(note_id)
+                    self._release_id(note_id)
 
     @property
     def octave(self) -> int:
@@ -158,7 +174,7 @@ class PianoUI:
                 sorted_keys = sorted(self.pressed_keys, key=lambda x: x[1])
                 notes_str = ', '.join([
                     self._get_note_name(midi_note)
-                    for _, midi_note in sorted_keys
+                    for _, midi_note, _ in sorted_keys
                 ])
                 pressed_line = f'Pressed: {notes_str}'
             else:

@@ -102,6 +102,54 @@ s.waitForBoot({
         };
     }, '/ndef/set');
 
+    ~notes = Dictionary.new;
+
+    OSCdef(\noteOn, { |msg|
+        var noteID = msg[1];
+        var midi = msg[2];
+        var velocity = msg[3] ? 0.8;
+        ("Note on: % (%.2 Hz, velocity: %)"
+            .format(noteID, midi.midicps, velocity)).postln;
+    }, '/note/on');
+
+    OSCdef(\noteOff, { |msg|
+        var noteID = msg[1];
+        ("Note off: %".format(noteID)).postln;
+    }, '/note/off');
+
+    OSCdef(\tdefPlay, { |msg|
+        var tdefName = msg[1].asSymbol;
+        var tdef = Tdef(tdefName);
+        if (tdef.isNil.not, {
+            tdef.play;
+            ("Tdef % playing".format(tdefName)).postln;
+        }, {
+            ("Tdef % not found".format(tdefName)).postln;
+        });
+    }, '/tdef/play');
+
+    OSCdef(\tdefStop, { |msg|
+        var tdefName = msg[1].asSymbol;
+        var tdef = Tdef(tdefName);
+        if (tdef.isNil.not, {
+            tdef.stop;
+            ("Tdef % stopped".format(tdefName)).postln;
+        }, {
+            ("Tdef % not found".format(tdefName)).postln;
+        });
+    }, '/tdef/stop');
+
+    OSCdef(\tdefPause, { |msg|
+        var tdefName = msg[1].asSymbol;
+        var tdef = Tdef(tdefName);
+        if (tdef.isNil.not, {
+            tdef.pause;
+            ("Tdef % paused".format(tdefName)).postln;
+        }, {
+            ("Tdef % not found".format(tdefName)).postln;
+        });
+    }, '/tdef/pause');
+
     ~includeFiles.do { |filePath|
         ("Loading " ++ filePath).postln;
         filePath.load;

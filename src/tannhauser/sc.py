@@ -312,3 +312,35 @@ class SuperCollider:
             args.extend([key, float(value)])
 
         self.client.send_message('/ndef/set', args)
+
+    def note_on(self,
+                note_id: int,
+                midi_note: int,
+                velocity: float = 0.8) -> None:
+        """Trigger a note on the SC server (MIDI-like interface).
+        
+        Supports fractional MIDI notes for microtonal/alternative tunings.
+        SuperCollider converts to frequency via `midicps`. Example: 60 (C4),
+        60.5 (quarter-tone above C4), 60 + (7/12) (perfect fifth in just
+        intonation).
+        Note will sustain until `node_off` is called for the same MIDI note.
+        """
+        self.client.send_message(
+            '/note/on', [note_id, float(midi_note),
+                         float(velocity)])
+
+    def note_off(self, note_id: int) -> None:
+        """Release a sustained note on the SC server."""
+        self.client.send_message('/note/off', [note_id])
+
+    def tdef_play(self, name: str) -> None:
+        """Start or resume a Tdef sequencer."""
+        self.client.send_message('/tdef/play', [name])
+
+    def tdef_stop(self, name: str) -> None:
+        """Stop a Tdef sequencer."""
+        self.client.send_message('/tdef/stop', [name])
+
+    def tdef_pause(self, name: str) -> None:
+        """Pause a Tdef sequencer (can be resumed with tdef_play)."""
+        self.client.send_message('/tdef/pause', [name])
