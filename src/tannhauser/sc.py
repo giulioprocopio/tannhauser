@@ -49,7 +49,7 @@ class SuperCollider:
                  boot_timeout: float = 15.0,
                  msg_timeout: float = 1.0,
                  include_scd_files: list[PathLike] | None = None,
-                 verbose: bool = False):
+                 debug: bool | None = None):
         self.host = host
         self.sc_port = sc_port
         self.py_port = py_port
@@ -58,7 +58,10 @@ class SuperCollider:
         self.msg_timeout = msg_timeout
         self.include_scd_files = [Path(p) for p in include_scd_files
                                   ] if include_scd_files else []
-        self.verbose = verbose
+
+        if debug is None:
+            debug = logger.isEnabledFor(logging.DEBUG)
+        self.debug = debug
 
         self._sclang_process: subprocess.Popen | None = None
 
@@ -170,11 +173,11 @@ class SuperCollider:
             logger.info('No additional SCD files to include')
             os.environ.pop('TNHSR_SC_INCLUDES', None)
 
-        if self.verbose:
-            os.environ['TNHSR_SC_VERBOSE'] = '1'
-            logger.info('Verbose mode enabled for SC boot script')
+        if self.debug:
+            os.environ['TNHSR_SC_DEBUG'] = '1'
+            logger.info('Debug verbose mode enabled for SC boot script')
         else:
-            os.environ.pop('TNHSR_SC_VERBOSE', None)
+            os.environ.pop('TNHSR_SC_DEBUG', None)
 
     def boot(self) -> SuperCollider:
         """Boot SuperCollider if not already running."""

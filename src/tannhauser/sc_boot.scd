@@ -6,7 +6,7 @@
     .split(";")
     .reject({ |s| s.isEmpty });
 
-~verbose = (getenv("TNHSR_SC_VERBOSE") ?? "0") == "1";
+~debug = (getenv("TNHSR_SC_DEBUG") ?? "0") == "1";
 
 // MacOS with AirPods 2 seems to have issues with the default buffer size
 // causing distortion. Setting it to 256 seems to fix the issue.
@@ -21,7 +21,7 @@ s.waitForBoot({
     "SuperCollider audio server booted".postln;
 
     ~postln = { |msg|
-        if (~verbose) {
+        if (~debug) {
             msg.postln;
         };
     };
@@ -119,7 +119,7 @@ s.waitForBoot({
         var midi = msg[2];
         var velocity = msg[3] ? 0.8;
 
-        ~postln.value("Note on: % (%.2 Hz, velocity: %)".format(
+        ~postln.value("Note on: % (% Hz, velocity: %)".format(
             noteID, midi.midicps, velocity
         ));
     }, '/note/on');
