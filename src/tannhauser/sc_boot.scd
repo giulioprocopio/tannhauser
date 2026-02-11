@@ -26,7 +26,7 @@ s.waitForBoot({
         0.exit;
     }, '/quit');
 
-    OSCdef(\status_reply, { |msg|
+    OSCdef(\statusReply, { |msg|
         var status = [
             1.0,
             s.numGroups.asFloat,
@@ -79,6 +79,28 @@ s.waitForBoot({
             nil
         });
     }, '/freqscope');
+
+    OSCdef(\ndefSet, { |msg|
+        var ndefName, ndef, params;
+
+        try {
+            ndefName = msg[1].asSymbol;
+            ndef = Ndef(ndefName);
+            params = msg[2..];
+
+            if (ndef.isNil.not, {
+                params.pairsDo { |key, value|
+                    ndef.set(key.asSymbol, value);
+                };
+                ("Ndef % set: %".format(ndefName, params)).postln;
+            }, {
+                ("Ndef % not found".format(ndefName)).postln;
+            });
+        } { |error|
+            ("Error setting Ndef parameter: " ++ error.errorString).postln;
+            error.dumpBackTrace;
+        };
+    }, '/ndef/set');
 
     ~includeFiles.do { |filePath|
         ("Loading " ++ filePath).postln;

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-__all__ = ['SoundEngine', 'SuperCollider']
+__all__ = ['SuperCollider']
 
-from abc import ABC
 from dataclasses import asdict, dataclass
 import logging
 import os
@@ -23,10 +22,6 @@ DIR = Path(__file__).parent
 DEFAULT_SC_BOOT_SCRIPT = DIR / 'sc_boot.scd'
 
 
-class SoundEngine(ABC):
-    pass
-
-
 @dataclass
 class SuperColliderStatus:
     server_running: bool  # Whether the server is running
@@ -40,14 +35,18 @@ class SuperColliderStatus:
     actual_rate: float  # Actual audio sample rate
 
 
-class SuperCollider(SoundEngine):
+class SuperCollider:
+    """Interface to manage SuperCollider server process and send OSC messages.
+    It can boot SC including custom SCD files, query status, and send test 
+    messages.
+    """
 
     def __init__(self,
                  host: str = '127.0.0.1',
                  sc_port: int = 57120,
                  py_port: int = 57121,
                  sc_boot_script: PathLike = DEFAULT_SC_BOOT_SCRIPT,
-                 boot_timeout: float = 15,
+                 boot_timeout: float = 15.0,
                  msg_timeout: float = 1.0,
                  include_scd_files: list[PathLike] | None = None):
         self.host = host
@@ -305,3 +304,11 @@ class SuperCollider(SoundEngine):
     def freqscope(self, num_channels: int = 2) -> None:
         """Open the SuperCollider frequency scope window."""
         self.client.send_message('/freqscope', [float(num_channels)])
+
+    def ndef_set(self, name: str, **params) -> None:
+        """Set parameters of a named Ndef on the SC server."""
+        args = [name]
+        for key, value in params.items():
+            args.extend([key, float(value)])
+
+        self.client.send_message('/ndef/set', args)
