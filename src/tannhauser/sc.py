@@ -48,7 +48,8 @@ class SuperCollider:
                  sc_boot_script: PathLike = DEFAULT_SC_BOOT_SCRIPT,
                  boot_timeout: float = 15.0,
                  msg_timeout: float = 1.0,
-                 include_scd_files: list[PathLike] | None = None):
+                 include_scd_files: list[PathLike] | None = None,
+                 verbose: bool = False):
         self.host = host
         self.sc_port = sc_port
         self.py_port = py_port
@@ -57,6 +58,7 @@ class SuperCollider:
         self.msg_timeout = msg_timeout
         self.include_scd_files = [Path(p) for p in include_scd_files
                                   ] if include_scd_files else []
+        self.verbose = verbose
 
         self._sclang_process: subprocess.Popen | None = None
 
@@ -158,15 +160,21 @@ class SuperCollider:
         for line in self._sclang_process.stdout:
             logger.info(f'[SC] {line.rstrip()}')
 
-    def _set_includes_env(self) -> None:
+    def _set_env_vars(self) -> None:
         if self.include_scd_files:
             includes_str = ';'.join(
                 str(p.absolute()) for p in self.include_scd_files)
-            os.environ['TNHSR_INCLUDES'] = includes_str
+            os.environ['TNHSR_SC_INCLUDES'] = includes_str
             logger.info(f'Including {len(self.include_scd_files)} SCD file(s)')
         else:
             logger.info('No additional SCD files to include')
-            os.environ.pop('TNHSR_INCLUDES', None)
+            os.environ.pop('TNHSR_SC_INCLUDES', None)
+
+        if self.verbose:
+            os.environ['TNHSR_SC_VERBOSE'] = '1'
+            logger.info('Verbose mode enabled for SC boot script')
+        else:
+            os.environ.pop('TNHSR_SC_VERBOSE', None)
 
     def boot(self) -> SuperCollider:
         """Boot SuperCollider if not already running."""
@@ -192,7 +200,7 @@ class SuperCollider:
         logger.info(
             f'Booting SuperCollider with script: {self.sc_boot_script}')
 
-        self._set_includes_env()
+        self._set_env_vars()
 
         try:
             self._sclang_process = subprocess.Popen(

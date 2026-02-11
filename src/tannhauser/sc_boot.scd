@@ -2,8 +2,11 @@
 ~scPort = 57120;
 ~pyPort = 57121;
 
-~includeFiles = (getenv("TNHSR_INCLUDES") ?? "").split(";")
-.reject({ |s| s.isEmpty });
+~includeFiles = (getenv("TNHSR_SC_INCLUDES") ?? "")
+    .split(";")
+    .reject({ |s| s.isEmpty });
+
+~verbose = (getenv("TNHSR_SC_VERBOSE") ?? "0") == "1";
 
 // MacOS with AirPods 2 seems to have issues with the default buffer size
 // causing distortion. Setting it to 256 seems to fix the issue.
@@ -16,6 +19,12 @@ thisProcess.openUDPPort(~scPort);
 s.waitForBoot({
 
     "SuperCollider audio server booted".postln;
+
+    ~postln = { |msg|
+        if (~verbose) {
+            msg.postln;
+        };
+    };
 
     ~pyPort = NetAddr("127.0.0.1", ~pyPort);
 
@@ -92,9 +101,9 @@ s.waitForBoot({
                 params.pairsDo { |key, value|
                     ndef.set(key.asSymbol, value);
                 };
-                ("Ndef % set: %".format(ndefName, params)).postln;
+                ~postln.value("Ndef % set: %".format(ndefName, params));
             }, {
-                ("Ndef % not found".format(ndefName)).postln;
+                ~postln.value("Ndef % not found".format(ndefName));
             });
         } { |error|
             ("Error setting Ndef parameter: " ++ error.errorString).postln;
@@ -102,19 +111,22 @@ s.waitForBoot({
         };
     }, '/ndef/set');
 
+    // Map note IDs to synths to allow on/off control on callback
     ~notes = Dictionary.new;
 
     OSCdef(\noteOn, { |msg|
         var noteID = msg[1];
         var midi = msg[2];
         var velocity = msg[3] ? 0.8;
-        ("Note on: % (%.2 Hz, velocity: %)"
-            .format(noteID, midi.midicps, velocity)).postln;
+
+        ~postln.value("Note on: % (%.2 Hz, velocity: %)".format(
+            noteID, midi.midicps, velocity
+        ));
     }, '/note/on');
 
     OSCdef(\noteOff, { |msg|
         var noteID = msg[1];
-        ("Note off: %".format(noteID)).postln;
+        ~postln.value("Note off: %".format(noteID));
     }, '/note/off');
 
     OSCdef(\tdefPlay, { |msg|
@@ -122,9 +134,9 @@ s.waitForBoot({
         var tdef = Tdef(tdefName);
         if (tdef.isNil.not, {
             tdef.play;
-            ("Tdef % playing".format(tdefName)).postln;
+            ~postln.value("Tdef % playing".format(tdefName));
         }, {
-            ("Tdef % not found".format(tdefName)).postln;
+            ~postln.value("Tdef % not found".format(tdefName));
         });
     }, '/tdef/play');
 
@@ -133,9 +145,9 @@ s.waitForBoot({
         var tdef = Tdef(tdefName);
         if (tdef.isNil.not, {
             tdef.stop;
-            ("Tdef % stopped".format(tdefName)).postln;
+            ~postln.value("Tdef % stopped".format(tdefName));
         }, {
-            ("Tdef % not found".format(tdefName)).postln;
+            ~postln.value("Tdef % not found".format(tdefName));
         });
     }, '/tdef/stop');
 
@@ -144,9 +156,9 @@ s.waitForBoot({
         var tdef = Tdef(tdefName);
         if (tdef.isNil.not, {
             tdef.pause;
-            ("Tdef % paused".format(tdefName)).postln;
+            ~postln.value("Tdef % paused".format(tdefName));
         }, {
-            ("Tdef % not found".format(tdefName)).postln;
+            ~postln.value("Tdef % not found".format(tdefName));
         });
     }, '/tdef/pause');
 
