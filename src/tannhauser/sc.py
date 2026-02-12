@@ -297,11 +297,10 @@ class SuperCollider:
         self._stop_osc_server()
 
     def __enter__(self) -> Self:
-        return self.boot()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.quit()
-        return self
 
     def test(self,
              freq: float = 440.0,

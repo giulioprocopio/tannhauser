@@ -1,5 +1,6 @@
-__all__ = ['PianoUI']
+__all__ = ['Controller', 'PianoUIController']
 
+from abc import ABC, abstractmethod
 import curses
 import logging
 from math import log10
@@ -23,10 +24,32 @@ def _load_pynput():
                 ' `pip install pynput`.') from e
 
 
+from .synth import Synth
+
 logger = logging.getLogger(__name__)
 
 
-class PianoUI:
+class Controller(ABC):
+    """Abstract base class for a controller. Defines the interface for handling
+    input events and mapping them to synthesizer actions.
+    """
+
+    @abstractmethod
+    def start(self) -> Self:
+        pass
+
+    @abstractmethod
+    def stop(self) -> None:
+        pass
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.stop()
+
+
+class PianoUIController(Controller):
     """Terminal UI to send MIDI notes callbacks based on PC keyboard input."""
 
     # Map keyboard keys to semitone offsets from C.
@@ -74,7 +97,8 @@ class PianoUI:
                  on_release: Callable[[int], None] | None = None,
                  on_mod: Callable[[float], None] | None = None,
                  velocity: float = 0.8,
-                 mod_func: Literal['linear', 'log', 'invlog'] = 'linear'):
+                 mod_func: Literal['linear', 'log', 'invlog'] = 'linear',
+                 mod_range: tuple[float, float] = (0.0, 1.0)):
         _load_pynput()
 
         self.on_press = on_press
@@ -83,6 +107,7 @@ class PianoUI:
 
         self.velocity = velocity
         self.mod_func = mod_func
+        self.mod_range = mod_range
 
         # Start at C4 (MIDI note 60)
         self.offset = 60
@@ -99,6 +124,20 @@ class PianoUI:
         self._ui_thread = None
         self._running = False
 
+    def mount(self, synth: Synth, mod_param: str | None = None) -> None:
+        """Mount a synthesizer to this controller. The controller will call the
+        appropriate methods on the synth when keys are pressed and released.
+        """
+        self.on_press = synth.note_on
+        self.on_release = synth.note_off
+
+        if mod_param:
+
+            def on_mod(value: float) -> None:
+                synth.set_param(mod_param, value)
+
+            self.on_mod = on_mod
+
     def _generate_id(self) -> int:
         if not self._free_ids:
             raise RuntimeError('No more free IDs available')
@@ -114,13 +153,16 @@ class PianoUI:
 
     def _eval_mod_value(self, x: float) -> float:
         if self.mod_func == 'linear':
-            return x
+            m = x
         elif self.mod_func == 'log':
-            return log10(9 * x + 1)
+            m = log10(9 * x + 1)
         elif self.mod_func == 'invlog':
-            return 1 - log10(9 * (1 - x) + 1)
+            m = 1 - log10(9 * (1 - x) + 1)
         else:
             raise ValueError(f'Unknown mod function: {self.mod_func}')
+
+        min_val, max_val = self.mod_range
+        return min_val + m * (max_val - min_val)
 
     def _handle_key_press(self, key) -> None:
         try:
@@ -156,8 +198,8 @@ class PianoUI:
             if self.on_press:
                 self.on_press(note_id, midi_note, self.velocity)
         elif char in self.MOD_KEY_MAP:
-            self.mod_value = self.MOD_KEY_MAP[char]
-            self.mod_value = self._eval_mod_value(self.mod_value)
+            m = self.MOD_KEY_MAP[char]
+            self.mod_value = self._eval_mod_value(m)
 
             self._update_display()
 
@@ -287,10 +329,3 @@ class PianoUI:
         self._running = False
         if self.listener.is_alive():
             self.listener.stop()
-
-    def __enter__(self) -> Self:
-        return self.start()
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self.stop()
-        return False

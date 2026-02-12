@@ -15,10 +15,8 @@ class Synth(ABC):
     notes, starting and stopping sequences, and setting parameters.
     """
 
-    def __init__(self, params: dict[str, Any] | None = None):
+    def __init__(self):
         self._params = {}
-        self.set_params(params or {})
-
         self.ready = False
 
     def boot(self) -> Self:
@@ -29,7 +27,7 @@ class Synth(ABC):
         self.ready = False
 
     def __enter__(self) -> Self:
-        return self.boot()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.quit()
@@ -73,30 +71,27 @@ class SuperColliderSynth(Synth):
     messages to a SuperCollider server.
     """
 
-    def __init__(self,
-                 sc: SuperCollider,
-                 params: dict[str, Number] | None = None):
-        super().__init__(params)
+    def __init__(self, sc: SuperCollider):
+        super().__init__()
         self.sc = sc
 
     @classmethod
-    def from_scd_files(
-            cls,
-            scd_files: list[PathLike],
-            params: dict[str, Number] | None = None) -> SuperColliderSynth:
+    def from_scd_files(cls, scd_files: list[PathLike]) -> SuperColliderSynth:
         """Create a `SuperColliderSynth` instance from a list of SuperCollider
         files. The files will be loaded into the SuperCollider server on boot.
         """
         sc = SuperCollider(include_scd_files=scd_files)
-        return cls(sc, params)
+        return cls(sc)
 
     def boot(self) -> Self:
+        """Start the SuperCollider server and load synth definitions."""
         super().boot()
         if not self.sc.ready:
             self.sc.boot()
         return self
 
     def quit(self) -> None:
+        """Stop the SuperCollider server."""
         super().quit()
         self.sc.quit()
 
