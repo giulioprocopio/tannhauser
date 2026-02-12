@@ -58,6 +58,8 @@ class SuperCollider:
         self.include_scd_files = [Path(p) for p in include_scd_files
                                   ] if include_scd_files else []
 
+        self.ready = False
+
         if debug is None:
             debug = logger.isEnabledFor(logging.DEBUG)
         self.debug = debug
@@ -225,6 +227,7 @@ class SuperCollider:
         while time.time() - start < self.boot_timeout:
             if self._is_sc_alive():
                 logger.info('SuperCollider booted successfully')
+                self.ready = True
                 # Allow using this method inside a `with` statement for
                 # automatic cleanup on failure
                 return self
@@ -250,6 +253,8 @@ class SuperCollider:
     def quit(self, force: bool = False) -> None:
         """Quit SuperCollider gracefully and forcefully if needed."""
         logger.info('Shutting down SuperCollider')
+
+        self.ready = False
 
         if not force:
             # Try graceful shutdown via OSC
