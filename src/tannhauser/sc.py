@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 __all__ = ['SuperCollider']
 
 from dataclasses import asdict, dataclass
@@ -9,6 +7,7 @@ from pathlib import Path
 import queue
 import subprocess
 import threading
+from typing import Self
 import time
 
 import psutil
@@ -179,7 +178,7 @@ class SuperCollider:
         else:
             os.environ.pop('TNHSR_SC_DEBUG', None)
 
-    def boot(self) -> SuperCollider:
+    def boot(self) -> Self:
         """Boot SuperCollider if not already running."""
         self._start_osc_server()
 
@@ -292,10 +291,10 @@ class SuperCollider:
         self._cleanup_process()
         self._stop_osc_server()
 
-    def __enter__(self):
-        return self
+    def __enter__(self) -> Self:
+        return self.boot()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.quit()
         return self
 
@@ -353,5 +352,5 @@ class SuperCollider:
         self.client.send_message('/tdef/stop', [name])
 
     def tdef_pause(self, name: str) -> None:
-        """Pause a Tdef sequencer (can be resumed with tdef_play)."""
+        """Pause a Tdef sequencer (can be resumed with `tdef_play`)."""
         self.client.send_message('/tdef/pause', [name])

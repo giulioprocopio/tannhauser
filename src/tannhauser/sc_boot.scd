@@ -2,16 +2,22 @@
 ~scPort = 57120;
 ~pyPort = 57121;
 
+s.options.numInputBusChannels = 0;
+// MacOS with AirPods 2 seems to have issues with the default buffer size
+// causing distortion. Setting it to 256 seems to fix the issue.
+//s.options.hardwareBufferSize = 256;
+
 ~includeFiles = (getenv("TNHSR_SC_INCLUDES") ?? "")
     .split(";")
     .reject({ |s| s.isEmpty });
 
 ~debug = (getenv("TNHSR_SC_DEBUG") ?? "0") == "1";
 
-// MacOS with AirPods 2 seems to have issues with the default buffer size
-// causing distortion. Setting it to 256 seems to fix the issue.
-s.options.numInputBusChannels = 0;
-s.options.hardwareBufferSize = 256;
+~postln = { |msg|
+    if (~debug) {
+        msg.postln;
+    };
+};
 
 thisProcess.openUDPPort(~scPort);
 "sclang listening on UDP port 57120".postln;
@@ -19,12 +25,6 @@ thisProcess.openUDPPort(~scPort);
 s.waitForBoot({
 
     "SuperCollider audio server booted".postln;
-
-    ~postln = { |msg|
-        if (~debug) {
-            msg.postln;
-        };
-    };
 
     ~pyPort = NetAddr("127.0.0.1", ~pyPort);
 

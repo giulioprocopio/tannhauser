@@ -1,12 +1,10 @@
-from __future__ import annotations
-
 __all__ = ['PianoUI']
 
 import curses
 import logging
 from math import log10
 import threading
-from typing import Callable, Literal
+from typing import Callable, Self, Literal
 
 pynput = None
 keyboard = None
@@ -110,7 +108,8 @@ class PianoUI:
     def _release_id(self, i: int) -> None:
         self._free_ids.add(i)
 
-    def _midi_to_freq(self, midi_note: int) -> float:
+    @staticmethod
+    def _midi_to_freq(midi_note: int) -> float:
         return 440.0 * (2.0**((midi_note - 69) / 12))
 
     def _eval_mod_value(self, x: float) -> float:
@@ -270,7 +269,7 @@ class PianoUI:
 
         self.stdscr = None
 
-    def start(self) -> PianoUI:
+    def start(self) -> Self:
         """Start keyboard listener and terminal UI."""
         logger.info('Starting piano UI')
         self._running = True
@@ -289,9 +288,9 @@ class PianoUI:
         if self.listener.is_alive():
             self.listener.stop()
 
-    def __enter__(self):
-        return self
+    def __enter__(self) -> Self:
+        return self.start()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.stop()
         return False
