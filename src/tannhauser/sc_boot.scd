@@ -8,15 +8,15 @@ s.options.numInputBusChannels = 0;
 //s.options.hardwareBufferSize = 256;
 
 ~includeFiles = (getenv("TNHSR_SC_INCLUDES") ?? "")
-    .split(";")
-    .reject({ |s| s.isEmpty });
+.split(";")
+.reject({ |s| s.isEmpty });
 
 ~debug = (getenv("TNHSR_SC_DEBUG") ?? "0") == "1";
 
 ~postln = { |msg|
-    if (~debug) {
-        msg.postln;
-    };
+if (~debug) {
+msg.postln;
+};
 };
 
 thisProcess.openUDPPort(~scPort);
@@ -161,6 +161,21 @@ s.waitForBoot({
             ~postln.value("Tdef % not found".format(tdefName));
         });
     }, '/tdef/pause');
+
+    OSCdef(\tdefSet, { |msg|
+        var tdefName = msg[1].asSymbol;
+        var tdef = Tdef(tdefName);
+        var params = msg[2..];
+
+        if (tdef.isNil.not, {
+            params.pairsDo { |key, value|
+                tdef.envir[key.asSymbol] = value;
+            };
+            ~postln.value("Tdef % set: %".format(tdefName, params));
+        }, {
+            ~postln.value("Tdef % not found".format(tdefName));
+        });
+    }, '/tdef/set');
 
     ~includeFiles.do { |filePath|
         ("Loading " ++ filePath).postln;

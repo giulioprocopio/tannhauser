@@ -4,7 +4,7 @@ __all__ = ['Synth', 'SuperColliderSynth']
 
 from abc import ABC, abstractmethod
 from numbers import Number
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 from .sc import SuperCollider
 from .utils import PathLike
@@ -119,34 +119,51 @@ class SuperColliderSynth(Synth):
         self.sc.tdef_pause(name)
 
     @staticmethod
-    def _unpack_param_name(name: str) -> tuple[str, str]:
+    def _unpack_param_name(
+            name: str) -> tuple[Literal['ndef', 'tdef'], str, str]:
         s = name.split('.')
-        if len(s) != 2:
+        if len(s) != 3:
             raise ValueError(
-                "Parameter name must be in the format `ndef_name.param_name`")
+                'Parameter name must be in the format `type.name.param_name`')
 
-        return s[0], s[1]
+        if not s[0] in ['ndef', 'tdef']:
+            raise ValueError('Parameter is not a valid Ndef or Tdef parameter')
+
+        return s[0], s[1], s[2]
 
     def set_param(self, name: str, value: Number) -> None:
-        """Set a SC synth parameter (Ndef attribute). The paramenter name is
-        given by the joint name of the Ndef and its argument, e.g.
-        `set_param('filter.freq', 1000)`.
+        """Set a SC synth parameter (Ndef or Tdef attribute). The parameter
+        name is given by the joint definition type, name of the definition and
+        its argument, e.g. `set_param('ndef.filter.freq', 1000)`.
         """
-        ndef_name, param_name = self._unpack_param_name(name)
+        def_type, def_name, param_name = self._unpack_param_name(name)
         self._register_param(name, value)
 
-        self.sc.ndef_set(ndef_name, **{param_name: value})
+        match def_type:
+            case 'ndef':
+                self.sc.ndef_set(def_name, **{param_name: value})
+            case 'tdef':
+                self.sc.tdef_set(def_name, **{param_name: value})
 
     def set_params(self, params: dict[str, Number]) -> None:
         """Set multiple SC synth parameters at once."""
-        ndef_params = {}
+        def_params = {}
         for name, value in params.items():
-            ndef_name, param_name = self._unpack_param_name(name)
+            def_type, def_name, param_name = self._unpack_param_name(name)
             self._register_param(name, value)
 
-            if ndef_name not in ndef_params:
-                ndef_params[ndef_name] = {}
-            ndef_params[ndef_name][param_name] = value
+            if def_type not in def_params:
+                def_params[def_type] = {}
 
-        for ndef_name, params in ndef_params.items():
-            self.sc.ndef_set(ndef_name, **params)
+            if def_name not in def_params[def_type]:
+                def_params[def_type][def_name] = {}
+
+            def_params[def_type][def_name][param_name] = value
+
+        for def_type, defs in def_params.items():
+            for def_name, params in defs.items():
+                match def_type:
+                    case 'ndef':
+                        self.sc.ndef_set(def_name, **params)
+                    case 'tdef':
+                        self.sc.tdef_set(def_name, **params)

@@ -358,3 +358,11 @@ class SuperCollider:
     def tdef_pause(self, name: str) -> None:
         """Pause a Tdef sequencer (can be resumed with `tdef_play`)."""
         self.client.send_message('/tdef/pause', [name])
+
+    def tdef_set(self, name: str, **params) -> None:
+        """Set environment parameters of a Tdef sequence."""
+        args = [name]
+        for key, value in params.items():
+            args.extend([key, float(value)])
+
+        self.client.send_message('/tdef/set', args)
