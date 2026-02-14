@@ -20,6 +20,11 @@ logger = logging.getLogger(__name__)
 DIR = Path(__file__).parent
 DEFAULT_SC_BOOT_SCRIPT = DIR / 'sc_boot.scd'
 
+ENV_SCPORT = 'TNHSR_SC_SCPORT'
+ENV_PYPORT = 'TNHSR_SC_PYPORT'
+ENV_INCLUDES = 'TNHSR_SC_INCLUDES'
+ENV_DEBUG = 'TNHSR_SC_DEBUG'
+
 
 @dataclass
 class SuperColliderStatus:
@@ -165,20 +170,23 @@ class SuperCollider:
             logger.info(f'[SC] {line.rstrip()}')
 
     def _set_env_vars(self) -> None:
+        os.environ[ENV_SCPORT] = str(self.sc_port)
+        os.environ[ENV_PYPORT] = str(self.py_port)
+
         if self.include_scd_files:
             includes_str = ';'.join(
                 str(p.absolute()) for p in self.include_scd_files)
-            os.environ['TNHSR_SC_INCLUDES'] = includes_str
+            os.environ[ENV_INCLUDES] = includes_str
             logger.info(f'Including {len(self.include_scd_files)} SCD file(s)')
         else:
             logger.info('No additional SCD files to include')
-            os.environ.pop('TNHSR_SC_INCLUDES', None)
+            os.environ.pop(ENV_INCLUDES, None)
 
         if self.debug:
-            os.environ['TNHSR_SC_DEBUG'] = '1'
+            os.environ[ENV_DEBUG] = '1'
             logger.info('Debug verbose mode enabled for SC boot script')
         else:
-            os.environ.pop('TNHSR_SC_DEBUG', None)
+            os.environ.pop(ENV_DEBUG, None)
 
     def boot(self) -> Self:
         """Boot SuperCollider if not already running."""

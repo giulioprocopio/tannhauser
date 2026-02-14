@@ -1,22 +1,22 @@
 (
-~scPort = 57120;
-~pyPort = 57121;
-
 s.options.numInputBusChannels = 0;
 // MacOS with AirPods 2 seems to have issues with the default buffer size
 // causing distortion. Setting it to 256 seems to fix the issue.
 //s.options.hardwareBufferSize = 256;
 
+~scPort = (getenv("TNHSR_SC_SCPORT") ?? "57120").asInteger;
+~pyPort = (getenv("TNHSR_SC_PYPORT") ?? "57121").asInteger;
+
 ~includeFiles = (getenv("TNHSR_SC_INCLUDES") ?? "")
-.split(";")
-.reject({ |s| s.isEmpty });
+    .split(";")
+    .reject({ |s| s.isEmpty });
 
 ~debug = (getenv("TNHSR_SC_DEBUG") ?? "0") == "1";
 
 ~postln = { |msg|
-if (~debug) {
-msg.postln;
-};
+    if (~debug) {
+        msg.postln;
+    };
 };
 
 thisProcess.openUDPPort(~scPort);
