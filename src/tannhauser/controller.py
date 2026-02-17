@@ -241,7 +241,7 @@ class PianoUIController(Controller):
 
         try:
             self.stdscr.clear()
-            height, width = self.stdscr.getmaxyx()
+            _, width = self.stdscr.getmaxyx()
 
             title_line = "Piano"
             title_x = (width - len(title_line)) // 2
