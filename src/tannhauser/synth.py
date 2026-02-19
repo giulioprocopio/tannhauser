@@ -126,10 +126,10 @@ class SuperColliderSynth(Synth):
             raise ValueError(
                 'Parameter name must be in the format `type.name.param_name`')
 
-        if not s[0] in ['ndef', 'tdef']:
+        if s[0] not in ('ndef', 'tdef'):
             raise ValueError('Parameter is not a valid Ndef or Tdef parameter')
 
-        return s[0], s[1], s[2]
+        return s[0], s[1], s[2]  # type: ignore[return-value]
 
     def set_param(self, name: str, value: Number) -> None:
         """Set a SC synth parameter (Ndef or Tdef attribute). The parameter
@@ -147,7 +147,8 @@ class SuperColliderSynth(Synth):
 
     def set_params(self, params: dict[str, Number]) -> None:
         """Set multiple SC synth parameters at once."""
-        def_params = {}
+        def_params: dict[Literal['ndef', 'tdef'],
+                         dict[str, dict[str, Number]]] = {}
         for name, value in params.items():
             def_type, def_name, param_name = self._unpack_param_name(name)
             self._register_param(name, value)

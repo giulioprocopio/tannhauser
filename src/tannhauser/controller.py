@@ -112,7 +112,9 @@ class PianoUIController(Controller):
         # Start at C4 (MIDI note 60)
         self.offset = 60
 
-        self.pressed_keys = set()
+        self.pressed_keys: set[tuple[
+            int, int, int]] = set()  # Semitone, MIDI note, note ID
+        assert keyboard is not None
         self.listener = keyboard.Listener(on_press=self._handle_key_press,
                                           on_release=self._handle_key_release)
 
@@ -120,8 +122,8 @@ class PianoUIController(Controller):
 
         self._free_ids = set(range(1024))  # Hopefully enough for any use case
 
-        self.stdscr = None
-        self._ui_thread = None
+        self.stdscr: curses.window | None = None
+        self._ui_thread: threading.Thread | None = None
         self._running = False
 
     def mount(self, synth: Synth, mod_param: str | None = None) -> None:
@@ -206,7 +208,7 @@ class PianoUIController(Controller):
             if self.on_mod:
                 self.on_mod(self.mod_value)
 
-    def _handle_key_release(self, key) -> False:
+    def _handle_key_release(self, key) -> None:
         try:
             char = key.char.lower()
         except AttributeError:

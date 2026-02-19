@@ -7,7 +7,7 @@ from pathlib import Path
 import queue
 import subprocess
 import threading
-from typing import Self
+from typing import Any, Self
 import time
 
 import psutil
@@ -77,7 +77,7 @@ class SuperCollider:
         self._osc_server: osc_server.ThreadingOSCUDPServer | None = None
         self._osc_thread: threading.Thread | None = None
 
-        self._status_queue = queue.Queue()
+        self._status_queue: queue.Queue = queue.Queue()
         self._dispatcher.map('/status.reply', self._on_status)
 
         logger.info(f'SuperCollider interface initialized (SC port {sc_port}'
@@ -166,7 +166,7 @@ class SuperCollider:
     def _log_sc_output(self) -> None:
         assert self._sclang_process is not None
 
-        for line in self._sclang_process.stdout:
+        for line in self._sclang_process.stdout or []:
             logger.info(f'[SC] {line.rstrip()}')
 
     def _set_env_vars(self) -> None:
@@ -194,7 +194,7 @@ class SuperCollider:
 
         if self._is_sc_alive():
             logger.info('SuperCollider is already running')
-            return
+            return self
 
         if not self.sc_boot_script:
             raise RuntimeError(
@@ -329,7 +329,7 @@ class SuperCollider:
 
     def ndef_set(self, name: str, **params) -> None:
         """Set parameters of a named Ndef on the SC server."""
-        args = [name]
+        args: list[Any] = [name]
         for key, value in params.items():
             args.extend([key, float(value)])
 
@@ -369,7 +369,7 @@ class SuperCollider:
 
     def tdef_set(self, name: str, **params) -> None:
         """Set environment parameters of a Tdef sequence."""
-        args = [name]
+        args: list[Any] = [name]
         for key, value in params.items():
             args.extend([key, float(value)])
 
