@@ -1,2 +1,3 @@
-psutil
+psutils
+pynput
 python-osc

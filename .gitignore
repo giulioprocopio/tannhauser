@@ -3,3 +3,17 @@
 
 # Python
 __pycache__/
+*.pyc
+*.pyo
+*.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+.hypothesis/
+
+# VSCode
+.vscode/
