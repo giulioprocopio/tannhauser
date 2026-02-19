@@ -1,4 +1,4 @@
-# Approximates Python's PEP 7.
+# Approximates Python's PEP 7
 BasedOnStyle: Google
 AlwaysBreakAfterReturnType: All
 AllowShortIfStatementsOnASingleLine: false
