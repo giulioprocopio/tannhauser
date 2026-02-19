@@ -1,2 +1,5 @@
+mypy
+types-psutil
+types-pynput
 pytest
 pytest-cov
