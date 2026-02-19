@@ -321,11 +321,11 @@ class SuperCollider:
 
     def scope(self, num_channels: int = 2) -> None:
         """Open SuperCollider scope window."""
-        self.client.send_message('/scope', [float(num_channels)])
+        self.client.send_message('/scope', [num_channels])
 
     def freqscope(self, num_channels: int = 2) -> None:
         """Open the SuperCollider frequency scope window."""
-        self.client.send_message('/freqscope', [float(num_channels)])
+        self.client.send_message('/freqscope', [num_channels])
 
     def ndef_set(self, name: str, **params) -> None:
         """Set parameters of a named Ndef on the SC server."""
@@ -337,7 +337,7 @@ class SuperCollider:
 
     def note_on(self,
                 note_id: int,
-                midi_note: int,
+                midi_note: float,
                 velocity: float = 0.8) -> None:
         """Trigger a note on the SC server (MIDI-like interface).
         
