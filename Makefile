@@ -7,5 +7,5 @@ sync-requirements:
 	uv add -r requirements.txt
 	uv add --dev -r requirements-dev.txt
 
-tests:
+test:
 	uv run pytest --cov=tannhauser tests/
