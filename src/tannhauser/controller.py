@@ -149,10 +149,6 @@ class PianoUIController(Controller):
     def _release_id(self, i: int) -> None:
         self._free_ids.add(i)
 
-    @staticmethod
-    def _midi_to_freq(midi_note: int) -> float:
-        return 440.0 * (2.0**((midi_note - 69) / 12))
-
     def _eval_mod_value(self, x: float) -> float:
         if self.mod_func == 'linear':
             m = x

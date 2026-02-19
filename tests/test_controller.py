@@ -131,23 +131,6 @@ class TestPianoUIController:
 
     @patch('tannhauser.controller._load_pynput')
     @patch('tannhauser.controller.keyboard')
-    def test_midi_to_freq(self, mock_keyboard, mock_load_pynput):
-        """Test MIDI note to frequency conversion."""
-        mock_keyboard.Listener = MagicMock()
-
-        # Test A4 (MIDI 69) = 440 Hz
-        assert PianoUIController._midi_to_freq(69) == 440.0
-
-        # Test C4 (MIDI 60)
-        freq_c4 = PianoUIController._midi_to_freq(60)
-        assert abs(freq_c4 - 261.6256) < 0.001
-
-        # Test A3 (MIDI 57) = 220 Hz
-        freq_a3 = PianoUIController._midi_to_freq(57)
-        assert abs(freq_a3 - 220.0) < 0.001
-
-    @patch('tannhauser.controller._load_pynput')
-    @patch('tannhauser.controller.keyboard')
     def test_eval_mod_value_linear(self, mock_keyboard, mock_load_pynput):
         """Test mod value evaluation with linear function."""
         mock_keyboard.Listener = MagicMock()
