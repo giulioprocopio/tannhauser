@@ -5,21 +5,18 @@ from tannhauser.utils import midi_to_freq
 class TestMidiToFreq:
     """Test the `midi_to_freq` function."""
 
-    def test_a4_reference(self):
-        """Test that MIDI note 69 (A4) returns 440 Hz."""
-        assert midi_to_freq(69) == 440.0
-
-    def test_c4(self):
-        """Test that MIDI note 60 (C) returns correct frequency."""
-        # C4 is 9 semitones below A4: 440 * 2^(-9/12)
-        expected = 440.0 * (2.0**(-9 / 12))
-        assert pytest.approx(midi_to_freq(60), rel=1e-9) == expected
-
-    def test_c0(self):
-        """Test that MIDI note 0 (C0) returns correct frequency."""
-        # C0 is 69 semitones below A4
-        expected = 440.0 * (2.0**(-69 / 12))
-        assert pytest.approx(midi_to_freq(0), rel=1e-9) == expected
+    @pytest.mark.parametrize('midi_note,expected_freq,description', [
+        (69, 440.0, 'A4 reference note'),
+        (60, 440.0 * (2.0 ** (-9 / 12)), 'C4, 9 semitones below A4'),
+        (0, 440.0 * (2.0 ** (-69 / 12)), 'C0, lowest standard MIDI'),
+        (127, 440.0 * (2.0 ** (58 / 12)), 'MIDI 127, highest standard'),
+        (-12, 440.0 * (2.0 ** (-81 / 12)), 'C-1, one octave below C0'),
+        (81, 880.0, 'A5, one octave above A4'),
+        (57, 220.0, 'A3, one octave below A4'),
+    ], ids=lambda x: x if isinstance(x, str) else '')
+    def test_specific_midi_notes(self, midi_note, expected_freq, description):
+        """Test specific MIDI note to frequency conversions."""
+        assert pytest.approx(midi_to_freq(midi_note), rel=1e-9) == expected_freq
 
     def test_octave_relationship(self):
         """Test that notes an octave apart have frequency ratio of 2:1."""
@@ -51,25 +48,3 @@ class TestMidiToFreq:
 
         # Verify 60.5 is between 60 and 61
         assert freq_60 < freq_60_5 < freq_61
-
-    def test_high_midi_note(self):
-        """Test very high MIDI note (e.g., 127, highest MIDI value)."""
-        freq = midi_to_freq(127)
-        # 127 is 58 semitones above A4
-        expected = 440.0 * (2.0**(58 / 12))
-        assert pytest.approx(freq, rel=1e-9) == expected
-
-    def test_negative_midi_note(self):
-        """Test negative MIDI note (below C0)."""
-        freq = midi_to_freq(-12)  # C-1, one octave below C0
-        # -12 is 81 semitones below A4
-        expected = 440.0 * (2.0**(-81 / 12))
-        assert pytest.approx(freq, rel=1e-9) == expected
-
-    def test_a5_double_a4(self):
-        """Test that A5 (81) is exactly double the frequency of A4 (69)."""
-        assert pytest.approx(midi_to_freq(81), rel=1e-9) == 880.0
-
-    def test_a3_half_a4(self):
-        """Test that A3 (57) is exactly half the frequency of A4 (69)."""
-        assert pytest.approx(midi_to_freq(57), rel=1e-9) == 220.0
