@@ -47,82 +47,40 @@ class TestSynth:
 
         assert synth.quit_called
 
-    def test_boot_sets_ready(self):
+    def test_boot_sets_ready(self, concrete_synth):
         """Test that calling `boot` sets ready flag."""
+        assert not concrete_synth.ready
 
-        class ConcreteSynth(Synth):
+        concrete_synth.boot()
+        assert concrete_synth.ready
 
-            def note_on(self, note_id, midi_note, velocity=0.8):
-                pass
-
-            def note_off(self, note_id):
-                pass
-
-            def play(self, name):
-                pass
-
-            def stop(self, name):
-                pass
-
-            def set_param(self, name, value):
-                pass
-
-        synth = ConcreteSynth()
-        assert not synth.ready
-
-        synth.boot()
-        assert synth.ready
-
-    def test_quit_unsets_ready(self):
+    def test_quit_unsets_ready(self, concrete_synth):
         """Test that calling `quit` unsets ready flag."""
+        concrete_synth.boot()
+        assert concrete_synth.ready
 
-        class ConcreteSynth(Synth):
+        concrete_synth.quit()
+        assert not concrete_synth.ready
 
-            def note_on(self, note_id, midi_note, velocity=0.8):
-                pass
-
-            def note_off(self, note_id):
-                pass
-
-            def play(self, name):
-                pass
-
-            def stop(self, name):
-                pass
-
-            def set_param(self, name, value):
-                pass
-
-        synth = ConcreteSynth()
-        synth.boot()
-        assert synth.ready
-
-        synth.quit()
-        assert not synth.ready
-
-    def test_register_param(self):
+    def test_register_param(self, concrete_synth):
         """Test that `_register_param` stores parameters."""
+        concrete_synth.set_param('test_param', 100)
+        assert concrete_synth._params['test_param'] == 100
 
-        class ConcreteSynth(Synth):
+    def test_ensure_ready_raises_when_not_ready(self, concrete_synth):
+        """Test that `_ensure_ready` raises `RuntimeError` when not booted."""
+        assert not concrete_synth.ready
 
-            def note_on(self, note_id, midi_note, velocity=0.8):
-                pass
+        with pytest.raises(RuntimeError, match='not ready'):
+            concrete_synth._ensure_ready()
 
-            def note_off(self, note_id):
-                pass
+    def test_ensure_ready_passes_when_ready(self, concrete_synth):
+        """Test that `_ensure_ready` doesn't raise when booted."""
+        concrete_synth.boot()
+        assert concrete_synth.ready
 
-            def play(self, name):
-                pass
-
-            def stop(self, name):
-                pass
-
-            def set_param(self, name, value):
-                self._register_param(name, value)
-
-        synth = ConcreteSynth()
-        synth.set_param('test_param', 100)
-        assert synth._params['test_param'] == 100
+        # Should not raise
+        concrete_synth._ensure_ready()
 
 
 class TestSuperColliderSynth:
@@ -179,42 +137,82 @@ class TestSuperColliderSynth:
     def test_note_on(self, mock_supercollider):
         """Test triggering note on."""
         synth = SuperColliderSynth(mock_supercollider)
+        synth.boot()
 
         synth.note_on(1, 60, 0.8)
 
         mock_supercollider.note_on.assert_called_once_with(1, 60, 0.8)
 
+    def test_note_on_not_ready(self, mock_supercollider):
+        """Test that note_on raises `RuntimeError` when not ready."""
+        synth = SuperColliderSynth(mock_supercollider)
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            synth.note_on(1, 60, 0.8)
+
     def test_note_off(self, mock_supercollider):
         """Test triggering note off."""
         synth = SuperColliderSynth(mock_supercollider)
+        synth.boot()
 
         synth.note_off(1)
 
         mock_supercollider.note_off.assert_called_once_with(1)
 
+    def test_note_off_not_ready(self, mock_supercollider):
+        """Test that `note_off` raises `RuntimeError` when not ready."""
+        synth = SuperColliderSynth(mock_supercollider)
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            synth.note_off(1)
+
     def test_play(self, mock_supercollider):
         """Test playing Tdef sequence."""
         synth = SuperColliderSynth(mock_supercollider)
+        synth.boot()
 
         synth.play('sequence')
 
         mock_supercollider.tdef_play.assert_called_once_with('sequence')
 
+    def test_play_not_ready(self, mock_supercollider):
+        """Test that play raises `RuntimeError` when not ready."""
+        synth = SuperColliderSynth(mock_supercollider)
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            synth.play('sequence')
+
     def test_stop(self, mock_supercollider):
         """Test stopping Tdef sequence."""
         synth = SuperColliderSynth(mock_supercollider)
+        synth.boot()
 
         synth.stop('sequence')
 
         mock_supercollider.tdef_stop.assert_called_once_with('sequence')
 
+    def test_stop_not_ready(self, mock_supercollider):
+        """Test that stop raises `RuntimeError` when not ready."""
+        synth = SuperColliderSynth(mock_supercollider)
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            synth.stop('sequence')
+
     def test_pause(self, mock_supercollider):
         """Test pausing Tdef sequence."""
         synth = SuperColliderSynth(mock_supercollider)
+        synth.boot()
 
         synth.pause('sequence')
 
         mock_supercollider.tdef_pause.assert_called_once_with('sequence')
+
+    def test_pause_not_ready(self, mock_supercollider):
+        """Test that pause raises `RuntimeError` when not ready."""
+        synth = SuperColliderSynth(mock_supercollider)
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            synth.pause('sequence')
 
     def test_unpack_param_name_ndef(self):
         """Test unpacking Ndef parameter name."""
@@ -242,6 +240,7 @@ class TestSuperColliderSynth:
     def test_set_param_ndef(self, mock_supercollider):
         """Test setting Ndef parameter."""
         synth = SuperColliderSynth(mock_supercollider)
+        synth.boot()
 
         synth.set_param('ndef.filter.freq', 1000)
 
@@ -252,6 +251,7 @@ class TestSuperColliderSynth:
     def test_set_param_tdef(self, mock_supercollider):
         """Test setting Tdef parameter."""
         synth = SuperColliderSynth(mock_supercollider)
+        synth.boot()
 
         synth.set_param('tdef.sequence.tempo', 120)
 
@@ -302,3 +302,10 @@ class TestSuperColliderSynth:
         mock_supercollider.tdef_set.assert_called_once_with('sequence',
                                                             tempo=120,
                                                             amp=0.8)
+
+    def test_set_param_not_ready(self, mock_supercollider):
+        """Test that `set_param` raises `RuntimeError` when not ready."""
+        synth = SuperColliderSynth(mock_supercollider)
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            synth.set_param('ndef.filter.freq', 1000)

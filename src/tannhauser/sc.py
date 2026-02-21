@@ -83,6 +83,11 @@ class SuperCollider:
         logger.info(f'SuperCollider interface initialized (SC port {sc_port}'
                     f', listen port {py_port})')
 
+    def _ensure_ready(self) -> None:
+        if not self.ready:
+            raise RuntimeError(
+                'SuperCollider server is not ready. Call `boot` first.')
+
     def _start_osc_server(self) -> None:
         if self._osc_server is not None:
             logger.warning('OSC server already running')
@@ -315,20 +320,25 @@ class SuperCollider:
              amp: float = 0.2,
              dur: float = 1.0) -> None:
         """Play a simple sample sine synth on the SC server."""
+        self._ensure_ready()
         self.client.send_message(
             '/test',
             [float(freq), float(amp), float(dur)])
 
     def scope(self, num_channels: int = 2) -> None:
         """Open SuperCollider scope window."""
+        self._ensure_ready()
         self.client.send_message('/scope', [num_channels])
 
     def freqscope(self, num_channels: int = 2) -> None:
         """Open the SuperCollider frequency scope window."""
+        self._ensure_ready()
         self.client.send_message('/freqscope', [num_channels])
 
     def ndef_set(self, name: str, **params) -> None:
         """Set parameters of a named Ndef on the SC server."""
+        self._ensure_ready()
+
         args: list[Any] = [name]
         for key, value in params.items():
             args.extend([key, float(value)])
@@ -347,28 +357,35 @@ class SuperCollider:
         intonation).
         Note will sustain until `node_off` is called for the same MIDI note.
         """
+        self._ensure_ready()
         self.client.send_message(
             '/note/on', [note_id, float(midi_note),
                          float(velocity)])
 
     def note_off(self, note_id: int) -> None:
         """Release a sustained note on the SC server."""
+        self._ensure_ready()
         self.client.send_message('/note/off', [note_id])
 
     def tdef_play(self, name: str) -> None:
         """Start or resume a Tdef sequencer."""
+        self._ensure_ready()
         self.client.send_message('/tdef/play', [name])
 
     def tdef_stop(self, name: str) -> None:
         """Stop a Tdef sequencer."""
+        self._ensure_ready()
         self.client.send_message('/tdef/stop', [name])
 
     def tdef_pause(self, name: str) -> None:
         """Pause a Tdef sequencer (can be resumed with `tdef_play`)."""
+        self._ensure_ready()
         self.client.send_message('/tdef/pause', [name])
 
     def tdef_set(self, name: str, **params) -> None:
         """Set environment parameters of a Tdef sequence."""
+        self._ensure_ready()
+
         args: list[Any] = [name]
         for key, value in params.items():
             args.extend([key, float(value)])

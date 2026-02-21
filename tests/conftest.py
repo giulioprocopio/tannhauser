@@ -1,23 +1,10 @@
-"""Pytest configuration and shared fixtures."""
-
 import pytest
 from unittest.mock import Mock
-
-
-@pytest.fixture
-def mock_synth():
-    """Create a mock synth for testing controllers."""
-    synth = Mock()
-    synth.note_on = Mock()
-    synth.note_off = Mock()
-    synth.set_param = Mock()
-    synth.ready = True
-    return synth
+from tannhauser.synth import Synth
 
 
 @pytest.fixture
 def mock_supercollider():
-    """Create a mock `SuperCollider` instance for testing."""
     sc = Mock()
     sc.host = '127.0.0.1'
     sc.sc_port = 57120
@@ -31,3 +18,36 @@ def mock_supercollider():
     sc.tdef_stop = Mock()
     sc.tdef_pause = Mock()
     return sc
+
+
+class ConcreteSynth(Synth):
+
+    def note_on(self, note_id, midi_note, velocity=0.8):
+        pass
+
+    def note_off(self, note_id):
+        pass
+
+    def play(self, name):
+        pass
+
+    def stop(self, name):
+        pass
+
+    def set_param(self, name, value):
+        self._register_param(name, value)
+
+
+@pytest.fixture
+def concrete_synth():
+    return ConcreteSynth()
+
+
+@pytest.fixture
+def mock_synth():
+    synth = Mock()
+    synth.note_on = Mock()
+    synth.note_off = Mock()
+    synth.set_param = Mock()
+    synth.ready = True
+    return synth

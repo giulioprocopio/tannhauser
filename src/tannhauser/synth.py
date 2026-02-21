@@ -19,6 +19,12 @@ class Synth(ABC):
         self._params = {}
         self.ready = False
 
+    def _ensure_ready(self) -> None:
+        if not self.ready:
+            raise RuntimeError(
+                'Synth is not ready. Call `boot` or use a context manager to'
+                ' initialize the synth.')
+
     def boot(self) -> Self:
         self.ready = True
         return self
@@ -100,22 +106,27 @@ class SuperColliderSynth(Synth):
                 midi_note: int,
                 velocity: float = 0.8) -> None:
         """Press a note."""
+        self._ensure_ready()
         self.sc.note_on(note_id, midi_note, velocity)
 
     def note_off(self, note_id: int) -> None:
         """Release a note."""
+        self._ensure_ready()
         self.sc.note_off(note_id)
 
     def play(self, name: str) -> None:
         """Play or resume a SC Tdef sequence."""
+        self._ensure_ready()
         self.sc.tdef_play(name)
 
     def stop(self, name: str) -> None:
         """Stop a SC Tdef sequence."""
+        self._ensure_ready()
         self.sc.tdef_stop(name)
 
     def pause(self, name: str) -> None:
         """Pause a SC Tdef sequence."""
+        self._ensure_ready()
         self.sc.tdef_pause(name)
 
     @staticmethod
@@ -136,6 +147,8 @@ class SuperColliderSynth(Synth):
         name is given by the joint definition type, name of the definition and
         its argument, e.g. `set_param('ndef.filter.freq', 1000)`.
         """
+        self._ensure_ready()
+
         def_type, def_name, param_name = self._unpack_param_name(name)
         self._register_param(name, value)
 

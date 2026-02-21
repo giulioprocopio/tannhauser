@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import pytest
 from unittest.mock import Mock, patch
 
 from tannhauser.sc import (SuperCollider, SuperColliderStatus, ENV_SCPORT,
@@ -277,9 +278,19 @@ class TestSuperCollider:
         assert not sc.ready
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
+    def test_ensure_ready_raises_when_not_ready(self, mock_udp_client):
+        """Test that `_ensure_ready` raises `RuntimeError` when not booted."""
+        sc = SuperCollider()
+        assert not sc.ready
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            sc._ensure_ready()
+
+    @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_test_message(self, mock_udp_client):
         """Test sending test message."""
         sc = SuperCollider()
+        sc.ready = True
 
         sc.test(freq=440.0, amp=0.2, dur=1.0)
 
@@ -287,9 +298,18 @@ class TestSuperCollider:
             '/test', [440.0, 0.2, 1.0])
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
+    def test_test_not_ready(self, mock_udp_client):
+        """Test that `test` raises `RuntimeError` when not ready."""
+        sc = SuperCollider()
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            sc.test()
+
+    @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_scope_message(self, mock_udp_client):
         """Test sending scope message."""
         sc = SuperCollider()
+        sc.ready = True
 
         sc.scope(num_channels=2)
 
@@ -297,9 +317,18 @@ class TestSuperCollider:
             '/scope', [2])
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
+    def test_scope_not_ready(self, mock_udp_client):
+        """Test that `scope` raises `RuntimeError` when not ready."""
+        sc = SuperCollider()
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            sc.scope()
+
+    @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_freqscope_message(self, mock_udp_client):
         """Test sending freqscope message."""
         sc = SuperCollider()
+        sc.ready = True
 
         sc.freqscope(num_channels=2)
 
@@ -307,9 +336,18 @@ class TestSuperCollider:
             '/freqscope', [2])
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
+    def test_freqscope_not_ready(self, mock_udp_client):
+        """Test that `freqscope` raises `RuntimeError` when not ready."""
+        sc = SuperCollider()
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            sc.freqscope()
+
+    @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_ndef_set_single_param(self, mock_udp_client):
         """Test setting single Ndef parameter."""
         sc = SuperCollider()
+        sc.ready = True
 
         sc.ndef_set('filter', freq=1000)
 
@@ -320,6 +358,7 @@ class TestSuperCollider:
     def test_ndef_set_multiple_params(self, mock_udp_client):
         """Test setting multiple Ndef parameters."""
         sc = SuperCollider()
+        sc.ready = True
 
         sc.ndef_set('filter', freq=1000, res=0.5)
 
@@ -331,9 +370,18 @@ class TestSuperCollider:
         assert 0.5 in args
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
+    def test_ndef_set_not_ready(self, mock_udp_client):
+        """Test that `ndef_set` raises `RuntimeError` when not ready."""
+        sc = SuperCollider()
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            sc.ndef_set('filter', freq=1000)
+
+    @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_note_on(self, mock_udp_client):
         """Test sending note on message."""
         sc = SuperCollider()
+        sc.ready = True
 
         sc.note_on(1, 60, 0.8)
 
@@ -344,6 +392,7 @@ class TestSuperCollider:
     def test_note_on_fractional_midi(self, mock_udp_client):
         """Test sending note on with fractional MIDI note."""
         sc = SuperCollider()
+        sc.ready = True
 
         sc.note_on(1, 60.5, 0.8)
 
@@ -351,9 +400,18 @@ class TestSuperCollider:
             '/note/on', [1, 60.5, 0.8])
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
+    def test_note_on_not_ready(self, mock_udp_client):
+        """Test that `note_on` raises `RuntimeError` when not ready."""
+        sc = SuperCollider()
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            sc.note_on(1, 60, 0.8)
+
+    @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_note_off(self, mock_udp_client):
         """Test sending note off message."""
         sc = SuperCollider()
+        sc.ready = True
 
         sc.note_off(1)
 
@@ -361,9 +419,18 @@ class TestSuperCollider:
             '/note/off', [1])
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
+    def test_note_off_not_ready(self, mock_udp_client):
+        """Test that `note_off` raises `RuntimeError` when not ready."""
+        sc = SuperCollider()
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            sc.note_off(1)
+
+    @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_tdef_play(self, mock_udp_client):
         """Test sending Tdef play message."""
         sc = SuperCollider()
+        sc.ready = True
 
         sc.tdef_play('sequence')
 
@@ -371,9 +438,18 @@ class TestSuperCollider:
             '/tdef/play', ['sequence'])
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
+    def test_tdef_play_not_ready(self, mock_udp_client):
+        """Test that `tdef_play` raises `RuntimeError` when not ready."""
+        sc = SuperCollider()
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            sc.tdef_play('sequence')
+
+    @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_tdef_stop(self, mock_udp_client):
         """Test sending Tdef stop message."""
         sc = SuperCollider()
+        sc.ready = True
 
         sc.tdef_stop('sequence')
 
@@ -381,9 +457,18 @@ class TestSuperCollider:
             '/tdef/stop', ['sequence'])
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
+    def test_tdef_stop_not_ready(self, mock_udp_client):
+        """Test that `tdef_stop` raises `RuntimeError` when not ready."""
+        sc = SuperCollider()
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            sc.tdef_stop('sequence')
+
+    @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_tdef_pause(self, mock_udp_client):
         """Test sending Tdef pause message."""
         sc = SuperCollider()
+        sc.ready = True
 
         sc.tdef_pause('sequence')
 
@@ -391,9 +476,18 @@ class TestSuperCollider:
             '/tdef/pause', ['sequence'])
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
+    def test_tdef_pause_not_ready(self, mock_udp_client):
+        """Test that `tdef_pause` raises `RuntimeError` when not ready."""
+        sc = SuperCollider()
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            sc.tdef_pause('sequence')
+
+    @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_tdef_set(self, mock_udp_client):
         """Test setting Tdef parameters."""
         sc = SuperCollider()
+        sc.ready = True
 
         sc.tdef_set('sequence', tempo=120, amp=0.8)
 
@@ -403,3 +497,11 @@ class TestSuperCollider:
         assert 120.0 in args
         assert 'amp' in args
         assert 0.8 in args
+
+    @patch('tannhauser.sc.udp_client.SimpleUDPClient')
+    def test_tdef_set_not_ready(self, mock_udp_client):
+        """Test that `tdef_set` raises `RuntimeError` when not ready."""
+        sc = SuperCollider()
+
+        with pytest.raises(RuntimeError, match='not ready'):
+            sc.tdef_set('sequence', tempo=120)
