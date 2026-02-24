@@ -24,7 +24,7 @@ def _load_pynput():
                 ' `pip install pynput`.') from e
 
 
-from .synth import Synth
+from .synth import Synth, _SynthProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -327,3 +327,30 @@ class PianoUIController(Controller):
         self._running = False
         if self.listener.is_alive():
             self.listener.stop()
+
+
+class PianoUIMixin:
+    """Add a `piano_ui` method to a `Synth` class to easily create a bound
+    `PianoUIController`.
+    """
+
+    def piano_ui(self: _SynthProtocol,
+                 mod_param: str | None = None,
+                 **controller_kwargs) -> PianoUIController:
+        """Create a `PianoUIController` bound to this synth. The controller will
+        call the appropriate methods on the synth when keys are pressed and
+        released.
+        """
+        controller = PianoUIController(**controller_kwargs)
+
+        controller.on_press = self.note_on
+        controller.on_release = self.note_off
+
+        if mod_param:
+
+            def on_mod(value: float) -> None:
+                self.set_param(mod_param, value)
+
+            controller.on_mod = on_mod
+
+        return controller
