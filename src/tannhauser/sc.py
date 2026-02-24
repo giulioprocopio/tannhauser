@@ -16,7 +16,7 @@ import time
 import psutil
 from pythonosc import dispatcher, osc_server, udp_client
 
-from .controller import PianoUIMixin
+from .controller import PianoUISynthMixin
 from .synth import Synth
 from .utils import PathLike
 
@@ -398,7 +398,7 @@ class SuperCollider:
         self.client.send_message('/tdef/set', args)
 
 
-class SuperColliderSynth(Synth, PianoUIMixin):
+class SuperColliderSynth(Synth, PianoUISynthMixin):
     """`Synth` SuperCollider implementation that uses an OSC client to send 
     messages to a SuperCollider server.
     """

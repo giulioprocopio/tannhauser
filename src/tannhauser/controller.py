@@ -329,7 +329,7 @@ class PianoUIController(Controller):
             self.listener.stop()
 
 
-class PianoUIMixin:
+class PianoUISynthMixin:
     """Add a `piano_ui` method to a `Synth` class to easily create a bound
     `PianoUIController`.
     """
