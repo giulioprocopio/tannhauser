@@ -1,6 +1,5 @@
 __all__ = ['PathLike', 'midi_to_freq']
 
-from numbers import Number
 from pathlib import Path
 
 PathLike = str | Path
