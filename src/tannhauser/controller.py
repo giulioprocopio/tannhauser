@@ -24,7 +24,7 @@ def _load_pynput():
                 ' `pip install pynput`.') from e
 
 
-from .synth import Synth, _SynthProtocol
+from .synth import _SynthProtocol
 
 logger = logging.getLogger(__name__)
 
