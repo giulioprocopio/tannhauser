@@ -91,23 +91,6 @@ class TestPianoUIController:
 
     @patch('tannhauser.controller._load_pynput')
     @patch('tannhauser.controller.keyboard')
-    def test_mount_synth(self, mock_keyboard, mock_load_pynput, mock_synth):
-        """Test mounting a synth to the controller."""
-        mock_keyboard.Listener = MagicMock()
-
-        controller = PianoUIController()
-        controller.mount(mock_synth, mod_param='ndef.filter.freq')
-
-        assert controller.on_press is mock_synth.note_on
-        assert controller.on_release is mock_synth.note_off
-        assert controller.on_mod is not None
-
-        # Test that `on_mod` calls `synth.set_param`
-        controller.on_mod(0.5)
-        mock_synth.set_param.assert_called_once_with('ndef.filter.freq', 0.5)
-
-    @patch('tannhauser.controller._load_pynput')
-    @patch('tannhauser.controller.keyboard')
     def test_generate_and_release_id(self, mock_keyboard, mock_load_pynput):
         """Test ID generation and release."""
         mock_keyboard.Listener = MagicMock()

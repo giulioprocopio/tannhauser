@@ -126,20 +126,6 @@ class PianoUIController(Controller):
         self._ui_thread: threading.Thread | None = None
         self._running = False
 
-    def mount(self, synth: Synth, mod_param: str | None = None) -> None:
-        """Mount a synthesizer to this controller. The controller will call the
-        appropriate methods on the synth when keys are pressed and released.
-        """
-        self.on_press = synth.note_on
-        self.on_release = synth.note_off
-
-        if mod_param:
-
-            def on_mod(value: float) -> None:
-                synth.set_param(mod_param, value)
-
-            self.on_mod = on_mod
-
     def _generate_id(self) -> int:
         if not self._free_ids:
             raise RuntimeError('No more free IDs available')
