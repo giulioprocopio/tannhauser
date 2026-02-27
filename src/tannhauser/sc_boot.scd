@@ -45,7 +45,8 @@ s.waitForBoot({
             s.peakCPU,
             s.avgCPU,
             s.sampleRate,
-            s.actualSampleRate
+            s.actualSampleRate,
+            s.latency
         ];
         // For some reason, keeping integers in the tuple causes the Python OSC
         // library to fail parsing it, so we convert everything to float.

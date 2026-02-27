@@ -21,7 +21,8 @@ class TestSuperColliderStatus:
                                      peak_cpu=0.25,
                                      load=0.1,
                                      nominal_rate=44100.0,
-                                     actual_rate=44099.8)
+                                     actual_rate=44099.8,
+                                     sched_latency=0.2)
 
         assert status.server_running is True
         assert status.num_groups == 5
@@ -32,6 +33,7 @@ class TestSuperColliderStatus:
         assert status.load == 0.1
         assert status.nominal_rate == 44100.0
         assert status.actual_rate == 44099.8
+        assert status.sched_latency == 0.2
 
 
 class TestSuperCollider:
@@ -129,22 +131,22 @@ class TestSuperCollider:
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     @patch('tannhauser.sc.subprocess.run')
-    def test_have_sclang_available(self, mock_run, mock_udp_client):
+    def test_has_sclang_available(self, mock_run, mock_udp_client):
         """Test checking if sclang is available."""
         mock_run.return_value = Mock()
         sc = SuperCollider()
 
-        assert sc._have_sclang() is True
+        assert sc._has_sclang() is True
         mock_run.assert_called_once()
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     @patch('tannhauser.sc.subprocess.run')
-    def test_have_sclang_not_available(self, mock_run, mock_udp_client):
+    def test_has_sclang_not_available(self, mock_run, mock_udp_client):
         """Test checking if sclang is not available."""
         mock_run.side_effect = FileNotFoundError()
         sc = SuperCollider()
 
-        assert sc._have_sclang() is False
+        assert sc._has_sclang() is False
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_on_status_callback(self, mock_udp_client):
@@ -162,14 +164,14 @@ class TestSuperCollider:
         """Test querying status successfully."""
         sc = SuperCollider()
         status_data = (1.0, 5.0, 10.0, 100.0, 0.15, 0.25, 0.1, 44100.0,
-                       44099.8)
+                       44099.8, 0.2)
 
         # Mock the queue to return status data after `send_message` is called
         def mock_get(timeout):
             return status_data
 
         with patch.object(sc._status_queue, 'get', side_effect=mock_get):
-            status = sc.status()
+            status = sc.get_status()
 
         assert status is not None
         assert status.server_running is True
@@ -185,7 +187,7 @@ class TestSuperCollider:
         sc = SuperCollider()
         sc.msg_timeout = 0.1
 
-        status = sc.status()
+        status = sc.get_status()
 
         assert status is None
 
@@ -193,12 +195,11 @@ class TestSuperCollider:
     def test_is_sc_alive_true(self, mock_udp_client):
         """Test checking if SC is alive when it is."""
         sc = SuperCollider()
-        status_data = (1.0, 5.0, 10.0, 100.0, 0.15, 0.25, 0.1, 44100.0,
-                       44099.8)
 
         # Mock the queue to return status data
         def mock_get(timeout):
-            return status_data
+            return (1.0, 5.0, 10.0, 100.0, 0.15, 0.25, 0.1, 44100.0, 44099.8,
+                    0.2)
 
         with patch.object(sc._status_queue, 'get', side_effect=mock_get):
             assert sc._is_sc_alive() is True
@@ -210,6 +211,57 @@ class TestSuperCollider:
         sc.msg_timeout = 0.1
 
         assert sc._is_sc_alive() is False
+
+    @patch('time.time')
+    @patch('tannhauser.sc.udp_client.SimpleUDPClient')
+    def test_measure_rtt(self, mock_udp_client, mock_time):
+        """Test measuring round-trip time."""
+        sc = SuperCollider()
+        sc.ready = True  # Bypass `_ensure_ready` check
+        sc.msg_timeout = 0.1
+
+        # Mock `time.time` to return increasing values. Each iteration calls it
+        # twice. We simulate 0.1s delay for each of the 5 samples.
+        mock_time.side_effect = [
+            0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9
+        ]
+
+        # Mock `queue.get` to return immediately
+        with patch.object(sc._status_queue, 'get') as mock_queue_get:
+            mock_queue_get.return_value = 'status_data'  # Dummy data
+
+            rtt = sc.measure_rtt(samples=5)
+
+            # Expected RTT to average around 0.1s based on our mock time values
+            assert rtt == pytest.approx(0.1)
+
+            assert mock_queue_get.call_count == 5
+            assert mock_udp_client.return_value.send_message.call_count == 5
+
+    @patch('tannhauser.sc.SuperCollider.get_status')
+    @patch('tannhauser.sc.SuperCollider.measure_rtt')
+    @patch('tannhauser.sc.udp_client.SimpleUDPClient')
+    def test_estimate_latency(self, mock_udp_client, mock_measure_rtt,
+                              mock_get_status):
+        """Test estimating latency."""
+        sc = SuperCollider()
+        mock_get_status.return_value = SuperColliderStatus(
+            server_running=True,
+            num_groups=5,
+            num_synths=10,
+            num_ugens=100,
+            avg_cpu=0.15,
+            peak_cpu=0.25,
+            load=0.1,
+            nominal_rate=44100.0,
+            actual_rate=44099.8,
+            sched_latency=0.2)
+        mock_measure_rtt.return_value = 0.1
+
+        latency = sc.estimate_latency()
+
+        assert latency == pytest.approx(0.25)
+        mock_measure_rtt.assert_called_once()
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_set_env_vars(self, mock_udp_client):

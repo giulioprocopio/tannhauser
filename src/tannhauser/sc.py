@@ -42,6 +42,7 @@ class SuperColliderStatus:
     load: float  # Server load (fraction)
     nominal_rate: float  # Nominal audio sample rate
     actual_rate: float  # Actual audio sample rate
+    sched_latency: float  # SC server scheduling latency
 
 
 class SuperCollider:
@@ -85,6 +86,9 @@ class SuperCollider:
         self._status_queue: queue.Queue = queue.Queue()
         self._dispatcher.map('/status.reply', self._on_status)
 
+        self._status: SuperColliderStatus | None = None
+        self._latency: float | None = None
+
         logger.info(f'SuperCollider interface initialized (SC port {sc_port}'
                     f', listen port {py_port})')
 
@@ -125,7 +129,7 @@ class SuperCollider:
             self._osc_thread = None
             logger.info('OSC server stopped')
 
-    def _have_sclang(self) -> bool:
+    def _has_sclang(self) -> bool:
         """Check if `sclang` is available in `PATH`."""
         try:
             subprocess.run(['sclang', '--version'],
@@ -141,7 +145,7 @@ class SuperCollider:
     def _on_status(self, addr: str, *args) -> None:
         self._status_queue.put(args)
 
-    def status(self) -> SuperColliderStatus | None:
+    def get_status(self) -> SuperColliderStatus | None:
         """Query SuperCollider for its current status."""
         while not self._status_queue.empty():
             self._status_queue.get_nowait()
@@ -161,7 +165,8 @@ class SuperCollider:
                                          peak_cpu=args[5],
                                          load=args[6],
                                          nominal_rate=args[7],
-                                         actual_rate=args[8])
+                                         actual_rate=args[8],
+                                         sched_latency=args[9])
 
             logger.debug(f'Received status reply: {asdict(status)}')
             return status
@@ -169,9 +174,58 @@ class SuperCollider:
             logger.debug('No status reply received (probably not ready)')
             return None
 
+    @property
+    def status(self) -> SuperColliderStatus | None:
+        if self._status is None:
+            self._status = self.get_status()
+        return self._status
+
     def _is_sc_alive(self) -> bool:
-        status = self.status()
+        status = self.get_status()
         return status is not None and status.server_running
+
+    def measure_rtt(self, samples: int = 5) -> float:
+        """Measure round-trip time to SuperCollider by sending a `/status`
+        message `samples` times and averaging the response time.
+        """
+        self._ensure_ready()
+
+        rtts: list[float] = []
+
+        for _ in range(samples):
+            start = time.time()
+            self.client.send_message('/status', [])
+            try:
+                self._status_queue.get(timeout=self.msg_timeout)
+                rtt = time.time() - start
+                rtts.append(rtt)
+                logger.debug(f'RTT sample: {rtt:.3f}s')
+            except queue.Empty:
+                logger.warning('No response received for RTT measurement')
+
+        rtts = rtts or [float('inf')]
+        return sum(rtts) / len(rtts)
+
+    def estimate_latency(self) -> float:
+        """Estimate one-way latency to SuperCollider by measuring round-trip 
+        time and using the server-reported scheduling latency.
+        """
+        status = self.get_status()
+        if status is None:
+            return float('inf')
+        rtt = self.measure_rtt()
+        latency = rtt / 2 + status.sched_latency
+
+        logger.info(f'Estimated latency: {latency:.3f}s (RTT: {rtt:.3f}s,'
+                    f' scheduled latency: {status.sched_latency:.3f}s)')
+
+        return latency
+
+    @property
+    def latency(self) -> float | None:
+        if self._latency is None:
+            self._latency = self.estimate_latency()
+        return self._latency
 
     def _log_sc_output(self) -> None:
         assert self._sclang_process is not None
@@ -214,7 +268,7 @@ class SuperCollider:
             raise FileNotFoundError(
                 f'Boot script not found: {self.sc_boot_script}')
 
-        if not self._have_sclang():
+        if not self._has_sclang():
             raise RuntimeError(
                 '`sclang` is not available in `PATH`. Please install'
                 ' SuperCollider and ensure sclang is accessible.')
