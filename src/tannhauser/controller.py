@@ -21,7 +21,7 @@ def _load_pynput():
         except ImportError as e:
             raise ImportError(
                 '`pynput` library is required for keyboard input. Install with'
-                ' `pip install pynput`.') from e
+                ' `pip install pynput`') from e
 
 
 from .synth import _SynthProtocol
@@ -98,7 +98,8 @@ class PianoUIController(Controller):
                  on_mod: Callable[[float], None] | None = None,
                  velocity: float = 0.8,
                  mod_func: Literal['linear', 'log', 'invlog'] = 'linear',
-                 mod_range: tuple[float, float] = (0.0, 1.0)):
+                 mod_range: tuple[float, float] = (0.0, 1.0),
+                 max_voices: int | None = None):
         _load_pynput()
 
         self.on_press = on_press
@@ -108,12 +109,17 @@ class PianoUIController(Controller):
         self.velocity = velocity
         self.mod_func = mod_func
         self.mod_range = mod_range
+        self.max_voices = max_voices
 
         # Start at C4 (MIDI note 60)
         self.offset = 60
 
-        self.pressed_keys: set[tuple[
-            int, int, int]] = set()  # Semitone, MIDI note, note ID
+        # All physically held keys, oldest-first: `semitone`, `midi_note`.
+        # Used for note memory when voices are limited.
+        self.pressed_keys: list[tuple[int, int]] = []
+        # Currently sounding voices, oldest-first: `semitone`, `midi_note`, 
+        # `note_id`.
+        self.active_keys: list[tuple[int, int, int]] = []
         assert keyboard is not None
         self.listener = keyboard.Listener(on_press=self._handle_key_press,
                                           on_release=self._handle_key_release)
@@ -167,15 +173,26 @@ class PianoUIController(Controller):
         elif char in self.NOTE_KEY_MAP:
             semitone = self.NOTE_KEY_MAP[char]
 
-            for s, _, _ in self.pressed_keys:
+            # Ignore physical key repeat (key already held)
+            for s, _ in self.pressed_keys:
                 if s == semitone:
-                    # Key is already pressed, ignore repeat
                     return
 
             midi_note = self.offset + semitone
+            self.pressed_keys.append((semitone, midi_note))
             note_id = self._generate_id()
-            # Store tuple to keep track of octave changes.
-            self.pressed_keys.add((semitone, midi_note, note_id))
+
+            # Voice stealing: release oldest active voice if at the limit. The
+            # stolen note stays in `pressed_keys` for note memory
+            if self.max_voices is not None and len(
+                    self.active_keys) >= self.max_voices:
+                oldest = self.active_keys.pop(0)
+                if self.on_release:
+                    self.on_release(oldest[2])
+                self._release_id(oldest[2])
+
+            # Store tuple to keep track of octave changes
+            self.active_keys.append((semitone, midi_note, note_id))
 
             self._update_display()
 
@@ -198,16 +215,37 @@ class PianoUIController(Controller):
 
         if char in self.NOTE_KEY_MAP:
             semitone = self.NOTE_KEY_MAP[char]
-            # Handle case where key is pressed and then octave is changed
-            # before release: release should still trigger for the original
-            # note.
-            for s, midi_note, note_id in list(self.pressed_keys):
+
+            for s, midi_note in list(self.pressed_keys):
                 if s == semitone:
-                    self.pressed_keys.remove((s, midi_note, note_id))
+                    self.pressed_keys.remove((s, midi_note))
+                    break
+
+            # Octave may have changed between press and release; match by 
+            # semitone
+            for s, midi_note, note_id in list(self.active_keys):
+                if s == semitone:
+                    self.active_keys.remove((s, midi_note, note_id))
                     self._update_display()
                     if self.on_release:
                         self.on_release(note_id)
                     self._release_id(note_id)
+
+                    # Note memory: retrigger the most recently held key not
+                    # currently active
+                    if self.max_voices is not None:
+                        active_semitones = {s for s, _, _ in self.active_keys}
+                        for held_s, held_midi in reversed(self.pressed_keys):
+                            if held_s not in active_semitones:
+                                new_id = self._generate_id()
+                                self.active_keys.append(
+                                    (held_s, held_midi, new_id))
+                                self._update_display()
+                                if self.on_press:
+                                    self.on_press(new_id, held_midi,
+                                                  self.velocity)
+                                break
+                    break
 
     @property
     def octave(self) -> int:
@@ -236,8 +274,8 @@ class PianoUIController(Controller):
             octave_x = (width - len(octave_line)) // 2
             self.stdscr.addstr(3, max(0, octave_x), octave_line)
 
-            if self.pressed_keys:
-                sorted_keys = sorted(self.pressed_keys, key=lambda x: x[1])
+            if self.active_keys:
+                sorted_keys = sorted(self.active_keys, key=lambda x: x[1])
                 notes_str = ', '.join([
                     self._get_note_name(midi_note)
                     for _, midi_note, _ in sorted_keys

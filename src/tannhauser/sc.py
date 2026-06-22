@@ -95,7 +95,7 @@ class SuperCollider:
     def _ensure_ready(self) -> None:
         if not self.ready:
             raise RuntimeError(
-                'SuperCollider server is not ready. Call `boot` first.')
+                'SuperCollider server is not ready. Call `boot` first')
 
     def _start_osc_server(self) -> None:
         if self._osc_server is not None:
@@ -258,6 +258,7 @@ class SuperCollider:
 
         if self._is_sc_alive():
             logger.info('SuperCollider is already running')
+            self.ready = True
             return self
 
         if not self.sc_boot_script:
@@ -271,7 +272,12 @@ class SuperCollider:
         if not self._has_sclang():
             raise RuntimeError(
                 '`sclang` is not available in `PATH`. Please install'
-                ' SuperCollider and ensure sclang is accessible.')
+                ' SuperCollider and ensure sclang is accessible')
+
+        if self._sclang_process is not None:
+            raise RuntimeError(
+                'SuperCollider is already being booted. Wait for it to finish'
+                ' or call `quit` first')
 
         logger.info(
             f'Booting SuperCollider with script: {self.sc_boot_script}')
@@ -307,10 +313,11 @@ class SuperCollider:
 
         logger.error('SuperCollider failed to boot within timeout')
         self._cleanup_process()
+        self._stop_osc_server()
         raise RuntimeError(
             f'SuperCollider failed to boot within {self.boot_timeout} seconds.'
             ' Check that the boot script is correct and SC is properly'
-            ' installed.')
+            ' installed')
 
     def _cleanup_process(self) -> None:
         if self._sclang_process:
@@ -471,9 +478,9 @@ class SuperColliderSynth(Synth, PianoUISynthMixin):
 
     def boot(self) -> Self:
         """Start the SuperCollider server and load synth definitions."""
-        super().boot()
         if not self.sc.ready:
             self.sc.boot()
+        super().boot()
         return self
 
     def quit(self) -> None:

@@ -285,8 +285,8 @@ class TestPianoUIController:
 
         controller._handle_key_press(mock_key)
 
-        assert len(controller.pressed_keys) == 1
-        semitone, midi_note, note_id = list(controller.pressed_keys)[0]
+        assert len(controller.active_keys) == 1
+        semitone, midi_note, note_id = list(controller.active_keys)[0]
         assert semitone == PianoUIController.NOTE_KEY_MAP[key]
         assert midi_note == controller.offset + semitone
         on_press.assert_called_once_with(note_id, midi_note,
@@ -331,11 +331,11 @@ class TestPianoUIController:
 
         # Press and release
         controller._handle_key_press(mock_key)
-        note_id = list(controller.pressed_keys)[0][2]
+        note_id = list(controller.active_keys)[0][2]
 
         controller._handle_key_release(mock_key)
 
-        assert len(controller.pressed_keys) == 0
+        assert len(controller.active_keys) == 0
         on_release.assert_called_once_with(note_id)
 
     @patch('tannhauser.controller._load_pynput')
@@ -374,3 +374,162 @@ class TestPianoUIController:
         # Should not raise an error
         controller._handle_key_press(mock_key)
         controller._handle_key_release(mock_key)
+
+    @patch('tannhauser.controller._load_pynput')
+    @patch('tannhauser.controller.keyboard')
+    def test_max_voices_default_is_none(self, mock_keyboard, mock_load_pynput):
+        """Test that `max_voices` defaults to None (unlimited)."""
+        mock_keyboard.Listener = MagicMock()
+
+        controller = PianoUIController()
+        assert controller.max_voices is None
+
+    @patch('tannhauser.controller._load_pynput')
+    @patch('tannhauser.controller.keyboard')
+    def test_max_voices_stored(self, mock_keyboard, mock_load_pynput):
+        """Test that `max_voices` is stored correctly."""
+        mock_keyboard.Listener = MagicMock()
+
+        controller = PianoUIController(max_voices=4)
+        assert controller.max_voices == 4
+
+    @patch('tannhauser.controller._load_pynput')
+    @patch('tannhauser.controller.keyboard')
+    def test_voice_stealing_releases_oldest(self, mock_keyboard,
+                                            mock_load_pynput):
+        """Test that the oldest voice is stolen when `max_voices` is reached."""
+        mock_keyboard.Listener = MagicMock()
+
+        on_press = Mock()
+        on_release = Mock()
+        controller = PianoUIController(on_press=on_press,
+                                       on_release=on_release,
+                                       max_voices=2)
+        controller._update_display = Mock()
+
+        keys = list(PianoUIController.NOTE_KEY_MAP.keys())
+        mock_key_a = Mock()
+        mock_key_a.char = keys[0]
+        mock_key_b = Mock()
+        mock_key_b.char = keys[1]
+        mock_key_c = Mock()
+        mock_key_c.char = keys[2]
+
+        controller._handle_key_press(mock_key_a)
+        controller._handle_key_press(mock_key_b)
+        oldest_id = list(controller.active_keys)[0][2]
+
+        # Third press should steal the oldest voice
+        controller._handle_key_press(mock_key_c)
+
+        assert len(controller.active_keys) == 2
+        on_release.assert_called_once_with(oldest_id)
+
+    @patch('tannhauser.controller._load_pynput')
+    @patch('tannhauser.controller.keyboard')
+    def test_voice_stealing_mono(self, mock_keyboard, mock_load_pynput):
+        """Test monophonic mode steals on every new note."""
+        mock_keyboard.Listener = MagicMock()
+
+        on_press = Mock()
+        on_release = Mock()
+        controller = PianoUIController(on_press=on_press,
+                                       on_release=on_release,
+                                       max_voices=1)
+        controller._update_display = Mock()
+
+        keys = list(PianoUIController.NOTE_KEY_MAP.keys())
+        for i in range(3):
+            mock_key = Mock()
+            mock_key.char = keys[i]
+            controller._handle_key_press(mock_key)
+
+        assert len(controller.active_keys) == 1
+        assert on_press.call_count == 3
+        assert on_release.call_count == 2  # stolen twice
+
+    @patch('tannhauser.controller._load_pynput')
+    @patch('tannhauser.controller.keyboard')
+    def test_voice_stealing_recycles_id(self, mock_keyboard, mock_load_pynput):
+        """Test that stolen voice IDs are returned to the free pool."""
+        mock_keyboard.Listener = MagicMock()
+
+        controller = PianoUIController(max_voices=1)
+        controller._update_display = Mock()
+        initial_free = len(controller._free_ids)
+
+        keys = list(PianoUIController.NOTE_KEY_MAP.keys())
+        for i in range(3):
+            mock_key = Mock()
+            mock_key.char = keys[i]
+            controller._handle_key_press(mock_key)
+
+        # Only 1 ID in use; the other two were recycled
+        assert len(controller._free_ids) == initial_free - 1
+
+    @patch('tannhauser.controller._load_pynput')
+    @patch('tannhauser.controller.keyboard')
+    def test_note_memory_retriggers_on_release(self, mock_keyboard,
+                                               mock_load_pynput):
+        """Releasing the current note retriggers the previously held note."""
+        mock_keyboard.Listener = MagicMock()
+
+        on_press = Mock()
+        on_release = Mock()
+        controller = PianoUIController(on_press=on_press,
+                                       on_release=on_release,
+                                       max_voices=1)
+        controller._update_display = Mock()
+
+        keys = list(PianoUIController.NOTE_KEY_MAP.keys())
+        mock_key_a = Mock()
+        mock_key_a.char = keys[0]
+        mock_key_b = Mock()
+        mock_key_b.char = keys[1]
+
+        controller._handle_key_press(mock_key_a)
+        id_a = list(controller.active_keys)[0][2]
+
+        controller._handle_key_press(mock_key_b)  # steals A
+        on_release.assert_called_once_with(id_a)
+        id_b = list(controller.active_keys)[0][2]
+
+        controller._handle_key_release(mock_key_b)  # A should retrigger
+
+        on_release.assert_called_with(id_b)
+        assert len(controller.active_keys) == 1
+        _, midi_note, _ = controller.active_keys[0]
+        assert midi_note == controller.offset + PianoUIController.NOTE_KEY_MAP[keys[0]]
+        assert on_press.call_count == 3  # A, B, A retrigger
+
+    @patch('tannhauser.controller._load_pynput')
+    @patch('tannhauser.controller.keyboard')
+    def test_note_memory_silent_release_no_side_effects(
+            self, mock_keyboard, mock_load_pynput):
+        """Releasing a held-but-stolen note does not call on_release or retrigger."""
+        mock_keyboard.Listener = MagicMock()
+
+        on_press = Mock()
+        on_release = Mock()
+        controller = PianoUIController(on_press=on_press,
+                                       on_release=on_release,
+                                       max_voices=1)
+        controller._update_display = Mock()
+
+        keys = list(PianoUIController.NOTE_KEY_MAP.keys())
+        mock_key_a = Mock()
+        mock_key_a.char = keys[0]
+        mock_key_b = Mock()
+        mock_key_b.char = keys[1]
+
+        controller._handle_key_press(mock_key_a)
+        controller._handle_key_press(mock_key_b)  # steals A
+        on_press.reset_mock()
+        on_release.reset_mock()
+
+        controller._handle_key_release(mock_key_a)  # A is held-but-silent
+
+        assert len(controller.active_keys) == 1
+        assert controller.active_keys[0][0] == PianoUIController.NOTE_KEY_MAP[keys[1]]
+        on_release.assert_not_called()
+        on_press.assert_not_called()

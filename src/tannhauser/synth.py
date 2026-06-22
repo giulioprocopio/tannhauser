@@ -19,7 +19,7 @@ class Synth(ABC):
         if not self.ready:
             raise RuntimeError(
                 'Synth is not ready. Call `boot` or use a context manager to'
-                ' initialize the synth.')
+                ' initialize the synth')
 
     def boot(self) -> Self:
         self.ready = True
