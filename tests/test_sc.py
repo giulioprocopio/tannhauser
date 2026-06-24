@@ -468,17 +468,23 @@ class TestSuperCollider:
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_pedal_sustain_on(self, mock_udp_client):
+        """Test sending sustain-on message."""
         sc = SuperCollider()
         sc.ready = True
+
         sc.pedal_sustain(True)
+
         mock_udp_client.return_value.send_message.assert_called_once_with(
             '/pedal/sustain', [1])
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_pedal_sustain_off(self, mock_udp_client):
+        """Test sending sustain-off message."""
         sc = SuperCollider()
         sc.ready = True
+
         sc.pedal_sustain(False)
+
         mock_udp_client.return_value.send_message.assert_called_once_with(
             '/pedal/sustain', [0])
 
@@ -621,9 +627,12 @@ class TestSuperColliderSynth:
         mock_supercollider.note_off.assert_called_once_with(1)
 
     def test_pedal_sustain(self, mock_supercollider):
+        """Test forwarding sustain pedal state."""
         synth = SuperColliderSynth(mock_supercollider)
         synth.boot()
+
         synth.pedal_sustain(True)
+
         mock_supercollider.pedal_sustain.assert_called_once_with(True)
 
     def test_play(self, mock_supercollider):

@@ -446,7 +446,7 @@ class TestPianoUIController:
 
         assert len(controller.active_keys) == 1
         assert on_press.call_count == 3
-        assert on_release.call_count == 2  # stolen twice
+        assert on_release.call_count == 2  # Stolen twice
 
     @patch('tannhauser.controller._load_pynput')
     @patch('tannhauser.controller.keyboard')
@@ -490,7 +490,7 @@ class TestPianoUIController:
         controller._handle_key_press(mock_key_a)
         id_a = list(controller.active_keys)[0][2]
 
-        controller._handle_key_press(mock_key_b)  # steals A
+        controller._handle_key_press(mock_key_b)  # Steals A
         on_release.assert_called_once_with(id_a)
         id_b = list(controller.active_keys)[0][2]
 
@@ -523,7 +523,7 @@ class TestPianoUIController:
         mock_key_b.char = keys[1]
 
         controller._handle_key_press(mock_key_a)
-        controller._handle_key_press(mock_key_b)  # steals A
+        controller._handle_key_press(mock_key_b)  # Steals A
         on_press.reset_mock()
         on_release.reset_mock()
 
