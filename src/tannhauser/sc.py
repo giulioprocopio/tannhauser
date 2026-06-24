@@ -17,6 +17,7 @@ import psutil
 from pythonosc import dispatcher, osc_server, udp_client
 
 from .controller import PianoUISynthMixin
+from .midi import MidiSynthMixin
 from .synth import Synth
 from .utils import PathLike
 
@@ -433,6 +434,11 @@ class SuperCollider:
         self._ensure_ready()
         self.client.send_message('/note/off', [note_id])
 
+    def pedal_sustain(self, on: bool) -> None:
+        """Send sustain pedal state to the SC server."""
+        self._ensure_ready()
+        self.client.send_message('/pedal/sustain', [int(on)])
+
     def tdef_play(self, name: str) -> None:
         """Start or resume a Tdef sequencer."""
         self._ensure_ready()
@@ -458,8 +464,7 @@ class SuperCollider:
 
         self.client.send_message('/tdef/set', args)
 
-
-class SuperColliderSynth(Synth, PianoUISynthMixin):
+class SuperColliderSynth(Synth, PianoUISynthMixin, MidiSynthMixin):
     """`Synth` SuperCollider implementation that uses an OSC client to send 
     messages to a SuperCollider server.
     """
@@ -500,6 +505,11 @@ class SuperColliderSynth(Synth, PianoUISynthMixin):
         """Release a note."""
         self._ensure_ready()
         self.sc.note_off(note_id)
+
+    def pedal_sustain(self, on: bool) -> None:
+        """Forward sustain pedal state to SC."""
+        self._ensure_ready()
+        self.sc.pedal_sustain(on)
 
     def play(self, name: str) -> None:
         """Play or resume a SC Tdef sequence."""

@@ -1,4 +1,4 @@
-__all__ = ['Controller', 'PianoUIController']
+__all__ = ['Controller', 'PianoUIController', 'PianoUISynthMixin']
 
 from abc import ABC, abstractmethod
 import curses

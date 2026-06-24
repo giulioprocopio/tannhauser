@@ -45,6 +45,9 @@ class Synth(ABC):
     def note_off(self, note_id: int) -> None:
         pass
 
+    def pedal_sustain(self, on: bool) -> None:
+        pass
+
     @abstractmethod
     def play(self, name: str) -> None:
         pass
@@ -80,6 +83,9 @@ class _SynthProtocol(Protocol):
         ...
 
     def note_off(self, note_id: int) -> None:
+        ...
+
+    def pedal_sustain(self, on: bool) -> None:
         ...
 
     def play(self, name: str) -> None:

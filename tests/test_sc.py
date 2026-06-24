@@ -348,6 +348,7 @@ class TestSuperCollider:
         }),
         ('note_on', (1, 60, 0.8), {}),
         ('note_off', (1, ), {}),
+        ('pedal_sustain', (True, ), {}),
         ('tdef_play', ('sequence', ), {}),
         ('tdef_stop', ('sequence', ), {}),
         ('tdef_pause', ('sequence', ), {}),
@@ -357,8 +358,9 @@ class TestSuperCollider:
     ],
                              ids=[
                                  'test', 'scope', 'freqscope', 'ndef_set',
-                                 'note_on', 'note_off', 'tdef_play',
-                                 'tdef_stop', 'tdef_pause', 'tdef_set'
+                                 'note_on', 'note_off', 'pedal_sustain',
+                                 'tdef_play', 'tdef_stop', 'tdef_pause',
+                                 'tdef_set'
                              ])
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_methods_not_ready(self, mock_udp_client, method_name, args,
@@ -465,6 +467,22 @@ class TestSuperCollider:
             '/note/off', [1])
 
     @patch('tannhauser.sc.udp_client.SimpleUDPClient')
+    def test_pedal_sustain_on(self, mock_udp_client):
+        sc = SuperCollider()
+        sc.ready = True
+        sc.pedal_sustain(True)
+        mock_udp_client.return_value.send_message.assert_called_once_with(
+            '/pedal/sustain', [1])
+
+    @patch('tannhauser.sc.udp_client.SimpleUDPClient')
+    def test_pedal_sustain_off(self, mock_udp_client):
+        sc = SuperCollider()
+        sc.ready = True
+        sc.pedal_sustain(False)
+        mock_udp_client.return_value.send_message.assert_called_once_with(
+            '/pedal/sustain', [0])
+
+    @patch('tannhauser.sc.udp_client.SimpleUDPClient')
     def test_tdef_play(self, mock_udp_client):
         """Test sending Tdef play message."""
         sc = SuperCollider()
@@ -568,12 +586,13 @@ class TestSuperColliderSynth:
         'method_name,args,kwargs', [
             ('note_on', (1, 60, 0.8), {}),
             ('note_off', (1, ), {}),
+            ('pedal_sustain', (True, ), {}),
             ('play', ('sequence', ), {}),
             ('stop', ('sequence', ), {}),
             ('pause', ('sequence', ), {}),
             ('set_param', ('ndef.filter.freq', 1000), {}),
         ],
-        ids=['note_on', 'note_off', 'play', 'stop', 'pause', 'set_param'])
+        ids=['note_on', 'note_off', 'pedal_sustain', 'play', 'stop', 'pause', 'set_param'])
     def test_methods_not_ready(self, mock_supercollider, method_name, args,
                                kwargs):
         """Test that methods raise `RuntimeError` when synth is not ready."""
@@ -600,6 +619,12 @@ class TestSuperColliderSynth:
         synth.note_off(1)
 
         mock_supercollider.note_off.assert_called_once_with(1)
+
+    def test_pedal_sustain(self, mock_supercollider):
+        synth = SuperColliderSynth(mock_supercollider)
+        synth.boot()
+        synth.pedal_sustain(True)
+        mock_supercollider.pedal_sustain.assert_called_once_with(True)
 
     def test_play(self, mock_supercollider):
         """Test playing Tdef sequence."""

@@ -1,3 +1,5 @@
+mido
 psutil
 pynput
 python-osc
+python-rtmidi

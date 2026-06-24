@@ -26,6 +26,8 @@ s.waitForBoot({
 
     "SuperCollider audio server booted".postln;
 
+    s.latency = 0.05;
+
     ~pyPort = NetAddr("127.0.0.1", ~pyPort);
 
     OSCdef(\quit, {
@@ -129,6 +131,11 @@ s.waitForBoot({
         var noteID = msg[1];
         ~postln.value("Note off: %".format(noteID));
     }, '/note/off');
+
+    OSCdef(\pedalSustain, { |msg|
+        var on = msg[1] > 0;
+        ~postln.value("Sustain pedal: %".format(if(on, {"on"}, {"off"})));
+    }, '/pedal/sustain');
 
     OSCdef(\tdefPlay, { |msg|
         var tdefName = msg[1].asSymbol;
