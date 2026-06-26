@@ -1,7 +1,7 @@
 __all__ = ['MidiController', 'MidiSynthMixin']
 
 import logging
-from typing import Callable, Self
+from typing import Any, Callable, Self
 
 from .controller import Controller
 from .synth import _SynthProtocol
@@ -68,7 +68,7 @@ class MidiController(Controller):
         self._sustained: bool = False
         self._pending_release: set[int] = set()
 
-        self._port = None
+        self._port: Any = None
 
     @staticmethod
     def list_ports() -> list[str]:
@@ -99,9 +99,8 @@ class MidiController(Controller):
         elif msg.type == 'note_off' or (msg.type == 'note_on'
                                         and msg.velocity == 0):
             midi_note = msg.note
-            note_id = self._active_notes.pop(midi_note, None)
-
-            if note_id is not None:
+            if midi_note in self._active_notes:
+                note_id = self._active_notes.pop(midi_note)
                 if self.wrap_sustain_pedal and self._sustained:
                     self._pending_release.add(note_id)
                 else:
